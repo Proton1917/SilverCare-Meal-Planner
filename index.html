@@ -1,0 +1,1860 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>老年人健康食谱生成器 v2.1｜居民/食堂/配送（扩展菜库+参数化打分）</title>
+  <meta name="description" content="支持'食堂配餐/营养换算表'的扩展JSON菜库与参数化打分规则（盐/油/糖/嘌呤/GI）。三端原型：居民端、食堂端、配送端。">
+  <style>
+    :root{
+      --bg:#fff7f0; --panel:#fff1e6; --card:#ffffff; --muted:#8a7664; --text:#2f2a28;
+      --accent:#f97316; --accent-2:#10b981; --warn:#f59e0b; --danger:#ef4444; --good:#34d399;
+    }
+    *{box-sizing:border-box}
+    body{ margin:0; background:linear-gradient(180deg,#fff8f3 0%,#ffe0c8 100%);
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,Helvetica,Arial,"Noto Sans SC","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif; color:var(--text); }
+    header{ position:sticky; top:0; backdrop-filter:blur(12px); background:rgba(255,255,255,.78); border-bottom:1px solid rgba(249,115,22,.15); box-shadow:0 8px 18px rgba(249,115,22,.08); z-index:20; }
+    .wrap{max-width:1160px; margin:0 auto; padding:18px 16px;}
+    h1{margin:0; font-size:22px; letter-spacing:.5px; display:flex; align-items:center; gap:10px;}
+    .badge{font-size:12px; padding:2px 8px; border-radius:999px; background:rgba(249,115,22,.12); color:#b45309; border:1px solid rgba(249,115,22,.35)}
+    .tabs{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    .tab{ padding:8px 12px; border-radius:12px; border:1px solid rgba(249,115,22,.15); cursor:pointer; font-size:13px; color:#a16207; user-select:none; background:rgba(255,255,255,.75); transition:all .2s; }
+    .tab.active{ border-color: rgba(249,115,22,.45); color:#b45309; background:linear-gradient(180deg, rgba(249,223,191,.9), rgba(255,255,255,.92)); box-shadow:0 6px 14px rgba(249,115,22,.12); }
+    main{max-width:1160px; margin:22px auto; padding:0 16px; display:grid; gap:16px;}
+    .card{background:linear-gradient(180deg, rgba(255,255,255,.96), rgba(255,255,255,.88)); border:1px solid rgba(249,115,22,.12); border-radius:18px; overflow:hidden; box-shadow:0 18px 45px rgba(249,115,22,.08);}
+    .card .hd{padding:14px 16px; border-bottom:1px dashed rgba(249,115,22,.15); display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap}
+    .card .bd{padding:16px; display:grid; gap:12px}
+    .muted{ color:var(--muted); font-size:12px } .small{ font-size:12px; color:#b8611f }
+    .grid{ display:grid; gap:12px } .row{ display:grid; gap:12px; grid-template-columns: 1fr 1fr; } .row-3{ display:grid; gap:12px; grid-template-columns: 1fr 1fr 1fr; }
+    @media (max-width: 980px){ .row, .row-3{ grid-template-columns:1fr; } }
+    label{font-size:13px; color:#7d5132; display:block; margin-bottom:6px}
+    input, select, textarea{ width:100%; background:rgba(255,255,255,.92); color:var(--text); border:1px solid rgba(249,115,22,.18); border-radius:12px; padding:10px 12px; outline:none; box-shadow:0 4px 12px rgba(249,115,22,.08); }
+    textarea{ min-height:96px; resize:vertical; }
+    .chips{ display:flex; flex-wrap:wrap; gap:8px } .chip{ background:linear-gradient(180deg, rgba(255,255,255,.95), rgba(255,238,221,.95)); border:1px solid rgba(249,115,22,.18); padding:6px 12px; border-radius:999px; cursor:pointer; user-select:none; font-size:12px; color:#9a5b1a; box-shadow:0 4px 8px rgba(249,115,22,.08); transition:all .2s;}
+    .chip.active{ border-color: rgba(16,185,129,.45); box-shadow:0 6px 16px rgba(16,185,129,.15); background:linear-gradient(180deg, rgba(236,253,245,.92), rgba(209,250,229,.92)); color:#0f5132; }
+    .chip.disabled{ opacity:.35; pointer-events:none; }
+    .btns{ display:flex; flex-wrap:wrap; gap:10px } button{ background:linear-gradient(180deg, rgba(249,173,94,.95), rgba(249,115,22,.92)); color:#fffaf3; border:1px solid rgba(217,119,6,.45); padding:10px 18px; border-radius:14px; cursor:pointer; font-weight:600; box-shadow:0 12px 24px rgba(249,115,22,.2); transition:transform .2s, box-shadow .2s; }
+    button:hover{ transform:translateY(-1px); box-shadow:0 16px 28px rgba(249,115,22,.28); }
+    button.secondary{ background:linear-gradient(180deg, rgba(236,253,245,.95), rgba(209,250,229,.92)); border-color: rgba(16,185,129,.3); color:#0f5132; box-shadow:0 12px 24px rgba(16,185,129,.18); }
+    button.ghost{ background:transparent; border-color: transparent; color:#f97316 }
+    .notice{ font-size:12px; line-height:1.6; background:rgba(255,246,236,.95); border:1px dashed rgba(249,115,22,.25); padding:10px 12px; border-radius:14px; color:#8c5b2a; }
+    .stat{ display:grid; grid-template-columns: 1fr 1fr; gap:10px } .stat .item{ background:linear-gradient(180deg, rgba(255,248,239,.95), rgba(255,241,225,.95)); border:1px solid rgba(249,115,22,.12); padding:12px 14px; border-radius:14px; font-size:12px; color:#8c5b2a; box-shadow:0 10px 22px rgba(249,115,22,.12); }
+    .score{ font-size:28px; font-weight:800; letter-spacing:1px; background:linear-gradient(90deg,#93c5fd,#a7f3d0); -webkit-background-clip:text; color:transparent }
+    .recipe{ white-space:pre-wrap; line-height:1.75; background:linear-gradient(180deg, rgba(255,255,255,.95), rgba(255,244,232,.95)); border:1px solid rgba(249,115,22,.15); border-radius:16px; padding:18px; color:#4a3321; box-shadow:0 16px 32px rgba(249,115,22,.1); }
+    .divider{ height:1px; background:linear-gradient(90deg, transparent, rgba(249,115,22,.25), transparent); margin:6px 0 }
+    .pill { display:inline-block; padding:2px 8px; border-radius:999px; background:rgba(16,185,129,.12); border:1px solid rgba(16,185,129,.4); color:#047857; font-size:11px }
+    .table { width:100%; border-collapse: collapse; } .table th, .table td{ border-bottom:1px dashed rgba(217,119,6,.18); padding:8px 6px; text-align:left; font-size:13px; color:#6b4426; }
+    .mono { font-family: ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace; }
+    .info-block{ background:linear-gradient(180deg, rgba(255,252,244,.95), rgba(255,242,226,.95)); border:1px dashed rgba(249,115,22,.22); padding:12px; border-radius:14px; display:grid; gap:6px; font-size:12px; line-height:1.6; color:#7b4521; box-shadow:0 8px 18px rgba(249,115,22,.1); }
+    .info-block strong{ font-size:13px; color:#b45309 }
+    .badge-inline{ display:inline-block; padding:2px 8px; border-radius:999px; background:rgba(249,115,22,.18); border:1px solid rgba(249,115,22,.4); color:#b45309; font-size:11px; letter-spacing:.5px }
+    .intake-bridge{ background:rgba(255,246,236,.85); border:1px dashed rgba(16,185,129,.3); padding:12px; border-radius:16px; display:grid; gap:8px; }
+    .intake-bridge .hint{ font-size:12px; color:#7d5132; }
+    .intake-bridge .btns button{ font-size:12px; padding:6px 12px; }
+    .intake-small{ font-size:12px; color:#815133; }
+    .inline-select{ min-width:120px; }
+    #diseaseSection{ display:none; gap:8px }
+    #diseaseSection.active{ display:grid; }
+    .bmi-card{ display:grid; grid-template-columns:130px 1fr; gap:16px; align-items:center; background:linear-gradient(135deg, rgba(255,244,229,.9), rgba(255,255,255,.95)); border:1px solid rgba(249,115,22,.18); border-radius:16px; padding:12px 14px; box-shadow:0 12px 24px rgba(249,115,22,.15); }
+    .bmi-illustration{ width:120px; height:120px; display:flex; align-items:center; justify-content:center; }
+    .bmi-illustration svg{ width:100%; height:100%; }
+    @media (max-width: 980px){
+      .bmi-card{ grid-template-columns:1fr; }
+      .bmi-illustration{ margin:0 auto; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <h1>老年人健康食谱生成器 v2.1 <span class="badge">扩展菜库 & 参数化打分</span></h1>
+      <div class="tabs" id="tabs-app">
+        <div class="tab active" data-tab="resident">居民端</div>
+        <div class="tab" data-tab="canteen">食堂端</div>
+        <div class="tab" data-tab="delivery">配送端</div>
+        <div class="tab" data-tab="about">设置/关于</div>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- 居民端 -->
+    <section class="card app-panel" id="panel-resident">
+      <div class="hd">
+        <div class="tabs">
+          <div class="tab active" data-subtab="breakfast">早餐定制</div>
+          <div class="tab" data-subtab="meals" data-meal="午餐">午餐定制</div>
+          <div class="tab" data-subtab="meals" data-meal="晚餐">晚餐定制</div>
+          <div class="tab" data-subtab="tea">四季养生茶饮</div>
+        </div>
+        <div class="muted">第一步统一录入身高、体重与饮茶/水果偏好，系统自动计算 BMI 与盐油建议；随后在不同餐别中生成菜单并联动扣除摄入。</div>
+      </div>
+
+      <div class="bd profile-panel" id="resident-profile">
+        <div class="row-3">
+          <div>
+            <label>季节</label>
+            <select id="season">
+              <option value="春">春</option><option value="夏">夏</option><option value="秋">秋</option><option value="冬">冬</option>
+            </select>
+          </div>
+          <div>
+            <label>蛋白质来源优先级</label>
+            <select id="proteinPref">
+              <option value="鱼类优先">鱼类优先</option><option value="禽畜适量">禽畜适量</option><option value="豆类/蛋奶">豆类/蛋奶</option>
+            </select>
+          </div>
+          <div>
+            <label>使用提示</label>
+            <div class="muted">以上参数会被午/晚餐共享，并驱动 BMI 评估、联动扣除与菜品筛选。</div>
+          </div>
+        </div>
+
+        <div class="row-3">
+          <div>
+            <label>身高（cm）</label>
+            <input type="number" id="height" min="120" max="210" step="0.5" placeholder="如：165" />
+          </div>
+          <div>
+            <label>体重（kg）</label>
+            <input type="number" id="weight" min="35" max="150" step="0.1" placeholder="如：60" />
+          </div>
+          <div>
+            <label>BMI 评估 <span class="small" id="bmiBadge">未计算</span></label>
+            <div class="bmi-card">
+              <div class="bmi-illustration" aria-hidden="true">
+                <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+                  <defs>
+                    <linearGradient id="grad-scale" x1="0%" y1="0%" x2="0%" y2="100%">
+                      <stop offset="0%" stop-color="#fcd9a1"/>
+                      <stop offset="100%" stop-color="#f9a94a"/>
+                    </linearGradient>
+                    <linearGradient id="grad-fruit" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stop-color="#f98845"/>
+                      <stop offset="100%" stop-color="#f97316"/>
+                    </linearGradient>
+                  </defs>
+                  <rect x="0" y="0" width="200" height="200" rx="28" fill="#fffaf4"/>
+                  <ellipse cx="100" cy="150" rx="78" ry="48" fill="#ffe6c8"/>
+                  <path d="M55 110c0-40 20-70 45-70s45 30 45 70c0 25-18 46-45 46s-45-21-45-46z" fill="url(#grad-scale)"/>
+                  <rect x="85" y="70" width="30" height="38" rx="10" fill="#fef7ed"/>
+                  <path d="M70 68c12-8 48-8 60 0-7 10-53 10-60 0z" fill="#fef7ed"/>
+                  <path d="M87 88c9-6 17-6 26 0l-13 26-13-26z" fill="#69be7c"/>
+                  <g fill="url(#grad-fruit)">
+                    <circle cx="52" cy="128" r="16"/>
+                    <circle cx="150" cy="132" r="18"/>
+                  </g>
+                  <path d="M46 117c8 3 12 7 14 14-10 0-17-4-20-12 2-2 4-3 6-2z" fill="#f47329" opacity=".6"/>
+                  <path d="M162 122c-10 2-16 7-19 14 10 1 18-3 21-11 0-2-1-3-2-3z" fill="#f47329" opacity=".6"/>
+                  <ellipse cx="40" cy="152" rx="22" ry="10" fill="#fdd39b"/>
+                  <rect x="120" y="46" width="20" height="12" rx="6" fill="#80c686"/>
+                  <circle cx="38" cy="70" r="10" fill="#80c686"/>
+                  <circle cx="168" cy="78" r="12" fill="#f98845"/>
+                  <circle cx="60" cy="46" r="7" fill="#f98845"/>
+                  <circle cx="156" cy="56" r="6" fill="#6ab1d6"/>
+                </svg>
+              </div>
+              <div class="info-block" id="bmiSummary">请填写身高体重，系统自动计算 BMI，并给出对应能量/蛋白建议。</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="row-3">
+          <div>
+            <label>饮茶偏好</label>
+            <div class="chips" id="teaPref">
+              <div class="chip" data-v="yes">喝茶</div>
+              <div class="chip" data-v="no">不喝茶</div>
+            </div>
+            <div class="muted">影响推荐茶饮组合。</div>
+          </div>
+          <div>
+            <label>水果偏好</label>
+            <div class="chips" id="fruitPref">
+              <div class="chip" data-v="yes">吃水果</div>
+              <div class="chip" data-v="no">不吃水果</div>
+            </div>
+            <div class="muted">将提供低糖或限钾水果参考。</div>
+          </div>
+          <div>
+            <label>推荐路径</label>
+            <div class="chips" id="carePath">
+              <div class="chip active" data-v="healthy">健康人食谱</div>
+              <div class="chip" data-v="chronic">慢性病食谱</div>
+            </div>
+            <div class="muted">按BMI→偏好→路径→慢病细分的顺序配置。</div>
+          </div>
+        </div>
+
+        <div id="diseaseSection" hidden>
+          <label>慢病细分（可多选）</label>
+          <div class="chips" id="diseases">
+            <div class="chip" data-v="高血压">高血压</div><div class="chip" data-v="糖尿病">糖尿病</div>
+            <div class="chip" data-v="高脂血症">高脂血症</div><div class="chip" data-v="冠心病">冠心病</div>
+            <div class="chip" data-v="肾脏病/痛风">肾脏病/痛风</div>
+          </div>
+          <div class="muted">仅在“慢性病食谱”路径下启用，影响油盐目标、禁忌、减糖/嘌呤等扣分阈值。</div>
+        </div>
+
+        <div class="row-3">
+          <div>
+            <label>每餐食盐上限（g）<span class="small" id="saltHint"></span></label>
+            <input type="number" id="salt" min="0" step="0.1" value="0.7" />
+            <div class="muted">默认按病种建议同步更新。</div>
+          </div>
+          <div>
+            <label>每餐食用油范围（g）</label>
+            <input type="text" id="oil" value="5-10" />
+            <div class="muted">高脂/冠心 4—8g，一般 5—10g，自动联动。</div>
+          </div>
+          <div>
+            <label>不耐/禁忌（逗号分隔，可留空）</label>
+            <input type="text" id="avoid" placeholder="如：牛奶, 花生, 辛辣" />
+          </div>
+        </div>
+      </div>
+
+      <!-- 早餐 -->
+      <div class="bd subpanel" id="resident-breakfast" data-display="grid">
+        <div class="row-3">
+          <div><label>偏好</label><select id="bfPref"><option value="清淡">清淡</option><option value="标准">标准</option></select></div>
+          <div><label>不耐/禁忌</label><input id="bfAvoid" placeholder="如：牛奶, 花生" /></div>
+          <div></div>
+        </div>
+        <div class="btns"><button id="btn-bf-generate">生成两周早餐</button><button class="secondary" id="btn-bf-copy">复制</button></div>
+        <div class="notice small">规则：HTN 忌咸菜/咸蛋/腐乳；DM 慎白粥/含糖饮；高脂慎油条/酥饼；CKD/痛风慎高嘌呤（海鲜/蘑菇等）。</div>
+        <div id="bfResult" class="recipe">（点击生成 14 天不重复搭配）</div>
+
+        <div class="intake-bridge">
+          <div class="hint"><strong>记录今日早餐摄入：</strong>可先选组合自动带入，再调整能量/蛋白/盐/油，午餐点击“导入早餐”即可联动扣除。</div>
+          <div class="row-3">
+            <div>
+              <label>选择组合填充</label>
+              <select id="bfPresetSelect">
+                <option value="">— 请选择 —</option>
+              </select>
+            </div>
+            <div><label>能量 (kcal)</label><input type="number" id="bfEnergy" placeholder="360" /></div>
+            <div><label>蛋白 (g)</label><input type="number" id="bfProtein" placeholder="18" /></div>
+          </div>
+          <div class="row-3">
+            <div><label>食盐 (g)</label><input type="number" id="bfSalt" step="0.1" placeholder="0.6" /></div>
+            <div><label>食用油 (g)</label><input type="number" id="bfOil" step="0.1" placeholder="6" /></div>
+            <div class="intake-small" id="bfRecordStatus">未记录早餐摄入</div>
+          </div>
+          <div class="btns">
+            <button class="secondary" id="btn-record-breakfast">记录为早餐摄入</button>
+            <button class="ghost" id="btn-clear-breakfast">清除早餐记录</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 午/晚餐 -->
+      <div class="bd subpanel" id="resident-meals" style="display:none" data-display="grid">
+        <div class="notice small" id="meal-indicator">当前：午餐，自动继承上方身高/偏好设定。</div>
+        <div class="btns">
+          <button id="btn-generate">生成 A/B 套餐</button>
+          <button class="secondary" id="btn-clear">清空</button>
+        </div>
+
+        <div class="intake-bridge">
+          <div class="hint" id="meal-link-hint">当前为午餐，可按需导入早餐摄入，以便重新分配能量/蛋白配额。</div>
+          <div class="btns">
+            <button class="secondary" id="btn-link-breakfast">导入早餐摄入</button>
+            <button class="secondary" id="btn-link-day">导入早餐+午餐摄入</button>
+            <select id="menu-log-choice" class="inline-select">
+              <option value="A">记录套餐A</option>
+              <option value="B">记录套餐B</option>
+            </select>
+            <button class="secondary" id="btn-save-meal">记录为本餐摄入</button>
+            <button class="ghost" id="btn-clear-meal-log">清空今日记录</button>
+          </div>
+          <div class="intake-small" id="meal-log-status">早餐：—｜午餐：—｜晚餐：—</div>
+          <div class="intake-small" id="imported-intake">尚未导入前餐摄入</div>
+        </div>
+
+        <div class="notice">
+          <b>健康分公式（v2.1参数化）</b> 主食与蛋白(≤30) + 油盐(≤35) + 慢病友好(≤25) + 做法(≤10)。盐/油/糖/嘌呤/GI 等按病种阈值片段线性扣分，规则可在"设置/关于"中调整。
+        </div>
+
+        <div class="grid">
+          <div class="stat">
+            <div class="item">健康分 <div class="divider"></div> <div class="score" id="score">—</div></div>
+            <div class="item">油盐评估 <div class="divider"></div> <div id="oilSalt">—</div></div>
+          </div>
+          <div class="stat">
+            <div class="item">主食与蛋白 <div class="divider"></div> <div id="stapleProtein">—</div></div>
+            <div class="item">慢病友好/做法 <div class="divider"></div> <div id="diseaseFit">—</div></div>
+          </div>
+        </div>
+
+        <div id="recipe" class="recipe">（点击生成，展示套餐A/B与分项得分；可复制到食堂端）</div>
+
+        <details>
+          <summary>预置季节示例（可直接插入）</summary>
+          <div class="small" id="presets"></div>
+        </details>
+
+        <details class="ai-block">
+          <summary>AI 自动生成（可选，调用兼容 OpenAI 接口）</summary>
+          <div class="row">
+            <div><label>API Base URL（OpenAI 兼容）</label><input id="apiBase" value="https://api.openai.com/v1" /></div>
+            <div><label>模型名称</label><input id="apiModel" value="gpt-4o-mini" /></div>
+          </div>
+          <div class="row">
+            <div>
+              <label>API Key（仅本地）</label><input id="apiKey" type="password" placeholder="sk-..." />
+              <div class="chips" style="margin-top:8px"><div class="chip" id="saveKey">保存到本地</div><div class="chip" id="clearKey">清除</div></div>
+            </div>
+            <div><label>上下文（季节/慢病/偏好）</label><input id="aiContext" placeholder="例：夏季，糖尿病+高血压，口味清淡，避免花生与牛奶" /></div>
+          </div>
+          <label>提示词</label>
+          <textarea id="promptTpl" spellcheck="false">你是资深临床营养师，请为"老年人（65+）"生成【{{季节}}】【{{餐别}}】的健康食谱，适配：{{慢病}}，禁忌：{{禁忌}}。遵循：1) 全谷主食生重75—80g；2) 优先鱼类/海产蛋白熟重100—150g；3) 每餐加入护血糖/护血管食材；4) 做法清蒸/清炖/水煮/少油快炒；5) 食用油按分型（一般5—10g；高脂/冠心4—8g），食盐≤分型上限（如HTN≈0.6—0.7g/餐）；6) 输出菜名+克重+做法要点+为何适合该慢病+健康分与改良建议。</textarea>
+          <div class="btns"><button id="btn-call">调用 API 生成</button><button class="secondary" id="btn-copy">复制结果</button></div>
+          <div class="notice small">说明：仅浏览器本地处理与存储你的 Key。</div>
+        </details>
+      </div>
+
+      <!-- 茶饮 -->
+      <div class="bd subpanel" id="resident-tea" style="display:none" data-display="grid">
+        <div class="grid">
+          <div class="notice"><b>茶饮为餐食搭配补充</b>（无需 AI 生成）。体质特殊、用药者遵医嘱。</div>
+          <div class="intake-bridge">
+            <div class="hint">点击即可按照当前季节 + 慢病设置自动推荐 3 款茶饮组合，可复制到居民端通知或配送清单。</div>
+            <div class="btns">
+              <button id="btn-tea-generate">生成茶饮推荐</button>
+              <button class="secondary" id="btn-tea-copy">复制推荐</button>
+            </div>
+            <div class="recipe" id="teaResult">（点击生成茶饮推荐，将结合季节与慢病偏好输出）</div>
+          </div>
+          <div class="row">
+            <div><h3>春（3—5月）</h3><ul class="small"><li>茉莉玫瑰醒春饮（玫瑰6g、茉莉6g、绿茶）</li><li>生姜紫苏御寒饮（生姜5片、紫苏10g、红糖）</li><li>蓝根牛蒡清润饮（板蓝根15g、牛蒡子10g、甘草10g）</li></ul></div>
+            <div><h3>夏（6—8月）</h3><ul class="small"><li>桂花酸梅生津饮（乌梅25g、山楂10g、陈皮3g、甘草4g）</li><li>佩兰荷叶化浊饮（佩兰10g、藿香10g、荷叶10g）</li><li>薏米绿豆利湿饮（生/熟薏米各30g、绿豆30g、玉米须30g）</li></ul></div>
+          </div>
+          <div class="row">
+            <div><h3>秋（9—11月）</h3><ul class="small"><li>山药雪梨滋肺饮（山药1根、雪梨1只、枸杞、冰糖）</li><li>生姜苏叶暖胃饮（生姜6片、紫苏叶6g、红糖）</li><li>桑枝橘络舒络饮（桑枝15g、橘络6g、丝瓜络6g）</li></ul></div>
+            <div><h3>冬（12—2月）</h3><ul class="small"><li>山楂决明消食饮（干山楂15g、决明子15g、熟普）</li><li>枸杞桑菊明目饮（桑叶15g、白菊15g、枸杞10g）</li><li>莲子红枣养心饮（莲子15g、莲子心1.5g、红枣5枚、桂圆3枚）</li></ul></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 食堂端 -->
+    <section class="card app-panel" id="panel-canteen" style="display:none">
+      <div class="hd"><div>食堂端 · 接单统计</div><div class="muted">粘贴"居民端"菜单，生成演示订单与病种份数 KPI。</div></div>
+      <div class="bd">
+        <div class="row">
+          <div class="grid">
+            <label>今日 A/B 菜单（来自居民端最近一次生成，可手动修改）</label>
+            <textarea id="canteen-menus" class="mono" placeholder="将居民端生成的 A/B 套餐粘贴至此"></textarea>
+            <div class="btns"><button id="btn-seed-orders">生成演示订单</button><button class="secondary" id="btn-clear-orders">清空</button></div>
+            <table class="table" id="order-table"><thead><tr><th>序号</th><th>姓名</th><th>联系方式</th><th>餐型</th><th>慢病标签</th><th>备注</th></tr></thead><tbody></tbody></table>
+          </div>
+          <div class="grid">
+            <div class="stat">
+              <div class="item">今日已接单<div class="divider"></div><div class="score" id="kpi-total">0</div></div>
+              <div class="item">糖尿病友好<div class="divider"></div><div class="score" id="kpi-dm">0</div></div>
+              <div class="item">高血压友好<div class="divider"></div><div class="score" id="kpi-htn">0</div></div>
+              <div class="item">高脂/冠心<div class="divider"></div><div class="score" id="kpi-ldl">0</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 配送端 -->
+    <section class="card app-panel" id="panel-delivery" style="display:none">
+      <div class="hd"><div>配送端 · 清单汇总</div><div class="muted">按小区/楼栋聚合 A/B 份数与特别备注（演示）。</div></div>
+      <div class="bd">
+        <div class="row">
+          <div><label>按小区/楼栋汇总</label><select id="groupBy"><option value="小区">小区</option><option value="楼栋">楼栋</option></select></div>
+          <div class="btns"><button id="btn-build-routes">生成配送清单</button><button class="secondary" id="btn-copy-routes">复制清单</button></div>
+        </div>
+        <div id="routes" class="recipe">（点击生成，按所选维度聚合）</div>
+      </div>
+    </section>
+
+    <!-- 设置/关于 -->
+    <section class="card app-panel" id="panel-about" style="display:none">
+      <div class="hd"><div>设置 / 关于</div><div class="muted">可导入扩展菜库（JSON）与评分规则（JSON）。</div></div>
+      <div class="bd">
+        <div class="notice"><b>如何使用：</b> 1) 在下方粘贴你的"食堂配餐/营养换算表"导出的 JSON；2) 如需调整评分逻辑，编辑"评分规则（JSON）"后点击"载入评分规则"。</div>
+        <div class="row">
+          <div>
+            <label>菜库（JSON）</label>
+            <textarea id="dataset" class="mono" placeholder="[ { ...菜品对象... } ]"></textarea>
+            <div class="btns"><button id="btn-load-dataset">载入菜库</button><button class="secondary" id="btn-fill-default-dataset">恢复默认菜库</button></div>
+          </div>
+          <div>
+            <label>评分规则（JSON）</label>
+            <textarea id="rules" class="mono" placeholder="{ ...评分与病种参数... }"></textarea>
+            <div class="btns"><button id="btn-load-rules">载入评分规则</button><button class="secondary" id="btn-fill-default-rules">恢复默认规则</button></div>
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label>当前菜库摘要</label>
+            <div class="notice small" id="dataset-summary">—</div>
+          </div>
+          <div>
+            <label>当前规则摘要</label>
+            <div class="notice small" id="rules-summary">—</div>
+          </div>
+        </div>
+        <div class="small">免责声明：本工具用于一般饮食教育与家庭备餐参考，不替代医疗建议。慢性病、肾病、吞咽困难等人群请遵医嘱个性化调整。</div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    /******** 基础工具 ********/
+    const $ = (sel)=>document.querySelector(sel);
+    const $$ = (sel)=>Array.from(document.querySelectorAll(sel));
+    const on = (el,ev,cb)=>el.addEventListener(ev,cb);
+    const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
+    const lerp = (a,b,t)=>a+(b-a)*t;
+
+    /******** 导航 ********/
+    $$('#tabs-app .tab').forEach(t=>on(t,'click',()=>{
+      $$('#tabs-app .tab').forEach(x=>x.classList.remove('active'));
+      t.classList.add('active');
+      const name = t.dataset.tab;
+      $$('.app-panel').forEach(p=>p.style.display='none');
+      $('#panel-'+name).style.display='block';
+    }));
+    $$('.card .tab').forEach(t=>on(t,'click',()=>{
+      if(!t.dataset.subtab) return;
+      t.parentElement.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+      t.classList.add('active');
+      $$('.subpanel').forEach(p=>p.style.display='none');
+      const panel = $('#resident-'+t.dataset.subtab);
+      if(panel){
+        panel.style.display = panel.dataset.display || 'grid';
+      }
+      if(t.dataset.meal){
+        setMealType(t.dataset.meal);
+      }
+    }));
+
+    /******** 规则与病种映射 ********/
+    // 病种 → 规则Key
+    const DISEASE_KEY_MAP = {
+      '高血压':'HTN','糖尿病':'DM','高脂血症':'HLD','冠心病':'CHD','肾脏病/痛风':'CKD_Gout','一般':'GEN'
+    };
+
+    // 默认评分规则
+    const DEFAULT_RULES = {
+      "weights": {"staple_protein": 30, "oil_salt": 35, "disease_fit": 25, "method": 10},
+      "staple": {"raw_g_opt_min": 75, "raw_g_opt_max": 85, "whole_grain_bonus": 4, "non_whole_penalty": 6},
+      "protein": {"min": 100, "max": 150, "out_of_range_max_penalty": 8},
+      "salt_curve": {"target_to_full": true, "full": 17, "mid": 9, "low": 5},
+      "oil_curve": {"in_range": 18, "out": 8},
+      "disease_params": {
+        "GEN": {"salt_target": 1.0, "salt_toler": 1.2, "oil_range": [5,10]},
+        "HTN": {"salt_target": 0.65, "salt_toler": 0.9,  "oil_range": [5,9],  "sodium_warn_mg": 275},
+        "DM":  {"salt_target": 0.9,  "salt_toler": 1.1,  "oil_range": [5,9],  "sugar_warn_g": 8,  "sugar_max_g": 15, "gi_warn": 60},
+        "HLD": {"salt_target": 1.0,  "salt_toler": 1.2,  "oil_range": [4,8],  "fat_warn_g": 15, "fat_max_g": 25},
+        "CHD": {"salt_target": 0.9,  "salt_toler": 1.1,  "oil_range": [4,8],  "fat_warn_g": 15, "fat_max_g": 25},
+        "CKD_Gout": {"salt_target": 0.8, "salt_toler": 1.0,  "oil_range": [5,8],  "purine_penalty": {"中":2, "高":6}}
+      },
+      "tags_bonus": {"护血糖": 5, "护血管": 5},
+      "forbidden_penalties": {
+        "DM": [ {"match":"粥","penalty":4}, {"match":"含糖","penalty":4} ],
+        "CKD_Gout": [ {"match":"海鲜","penalty":6}, {"match":"蘑菇","penalty":4} ]
+      },
+      "method_penalties": [ {"match":"油炸","penalty":3}, {"match":"重油","penalty":3}, {"match":"红烧","penalty":2}, {"match":"重酱油","penalty":2} ],
+      "method_good": ["清蒸","清炖","水煮","少油快炒","清烩"]
+    };
+
+    // 默认扩展菜库（16 道）
+    const DEFAULT_DISHES = [
+      {"season":"春","name":"清蒸鲈鱼","method":"清蒸","tags":["护血管","鱼类"],
+        "staple":{"name":"荞麦饭","raw_g":80,"cooked_g_est":200,"whole_grain":true,"gi":49,"gl_hint":"中低"},
+        "portion":{"edible_g":260,"protein_g":27,"fat_g":7,"carb_g":34,"fiber_g":5,"sugar_g":5,"sodium_mg":240,"salt_g":0.61,"purine_mg_per100g":120,"purine_grade":"中","energy_kcal":395},
+        "oil":6,"salt":0.6,"protein":130},
+      {"season":"春","name":"春笋茭菜炒虾仁","method":"少油快炒","tags":["护血糖","高蛋白","虾仁(痛风慎)"],
+        "staple":{"name":"糙米饭","raw_g":80,"cooked_g_est":200,"whole_grain":true,"gi":55},
+        "portion":{"edible_g":300,"protein_g":30,"fat_g":8,"carb_g":38,"fiber_g":6,"sugar_g":6,"sodium_mg":300,"salt_g":0.76,"purine_mg_per100g":170,"purine_grade":"高","energy_kcal":430},
+        "oil":7,"salt":0.7,"protein":110},
+      {"season":"春","name":"芹菜木耳鸡片","method":"少油快炒","tags":["护血压","禽类"],
+        "staple":{"name":"黑米饭","raw_g":75,"cooked_g_est":190,"whole_grain":true,"gi":50},
+        "portion":{"edible_g":300,"protein_g":29,"fat_g":9,"carb_g":35,"fiber_g":7,"sugar_g":6,"sodium_mg":320,"salt_g":0.81,"purine_mg_per100g":90,"purine_grade":"中","energy_kcal":435},
+        "oil":7,"salt":0.7,"protein":120},
+      {"season":"夏","name":"清炖冬瓜鲢鱼","method":"清炖","tags":["护血管","鱼类"],
+        "staple":{"name":"玉米渣粥(稠)","raw_g":80,"cooked_g_est":260,"whole_grain":true,"gi":58},
+        "portion":{"edible_g":320,"protein_g":28,"fat_g":6,"carb_g":44,"fiber_g":6,"sugar_g":6,"sodium_mg":250,"salt_g":0.64,"purine_mg_per100g":110,"purine_grade":"中","energy_kcal":430},
+        "oil":5,"salt":0.6,"protein":130,"flags":["糖尿病慎粥"]},
+      {"season":"夏","name":"苦瓜鸡胸木耳","method":"少油快炒","tags":["护血糖","护血管"],
+        "staple":{"name":"燕麦饭","raw_g":80,"cooked_g_est":200,"whole_grain":true,"gi":50},
+        "portion":{"edible_g":300,"protein_g":31,"fat_g":7,"carb_g":36,"fiber_g":7,"sugar_g":5,"sodium_mg":280,"salt_g":0.71,"purine_mg_per100g":85,"purine_grade":"中","energy_kcal":420},
+        "oil":6,"salt":0.7,"protein":125},
+      {"season":"夏","name":"番茄豆腐青菜煮","method":"水煮","tags":["清淡","豆制品"],
+        "staple":{"name":"糙米饭","raw_g":80,"cooked_g_est":200,"whole_grain":true,"gi":55},
+        "portion":{"edible_g":320,"protein_g":22,"fat_g":5,"carb_g":44,"fiber_g":7,"sugar_g":7,"sodium_mg":240,"salt_g":0.61,"purine_mg_per100g":70,"purine_grade":"中","energy_kcal":400},
+        "oil":5,"salt":0.6,"protein":100},
+      {"season":"秋","name":"清蒸带鱼段","method":"清蒸","tags":["鱼类","痛风慎"],
+        "staple":{"name":"荞麦饭","raw_g":80,"cooked_g_est":200,"whole_grain":true,"gi":49},
+        "portion":{"edible_g":290,"protein_g":29,"fat_g":9,"carb_g":33,"fiber_g":5,"sugar_g":5,"sodium_mg":300,"salt_g":0.76,"purine_mg_per100g":190,"purine_grade":"高","energy_kcal":435},
+        "oil":6,"salt":0.7,"protein":130},
+      {"season":"秋","name":"南瓜百合山药盅","method":"蒸","tags":["护血糖"],
+        "staple":{"name":"黑米饭","raw_g":75,"cooked_g_est":190,"whole_grain":true,"gi":50},
+        "portion":{"edible_g":310,"protein_g":18,"fat_g":4,"carb_g":52,"fiber_g":8,"sugar_g":8,"sodium_mg":210,"salt_g":0.53,"purine_mg_per100g":45,"purine_grade":"低","energy_kcal":395},
+        "oil":4,"salt":0.5,"protein":90},
+      {"season":"秋","name":"山药秋葵鸡胸","method":"少油快炒","tags":["护血糖"],
+        "staple":{"name":"糙米饭","raw_g":80,"cooked_g_est":200,"whole_grain":true,"gi":55},
+        "portion":{"edible_g":300,"protein_g":31,"fat_g":7,"carb_g":36,"fiber_g":7,"sugar_g":6,"sodium_mg":280,"salt_g":0.71,"purine_mg_per100g":80,"purine_grade":"中","energy_kcal":420},
+        "oil":6,"salt":0.7,"protein":125},
+      {"season":"冬","name":"萝卜鲫鱼汤（清汤）","method":"清炖","tags":["护血管","鱼类"],
+        "staple":{"name":"燕麦饭","raw_g":80,"cooked_g_est":200,"whole_grain":true,"gi":50},
+        "portion":{"edible_g":320,"protein_g":27,"fat_g":6,"carb_g":44,"fiber_g":6,"sugar_g":6,"sodium_mg":250,"salt_g":0.64,"purine_mg_per100g":120,"purine_grade":"中","energy_kcal":420},
+        "oil":5,"salt":0.6,"protein":120},
+      {"season":"冬","name":"香菇青菜豆腐煮","method":"水煮","tags":["清淡","豆制品","痛风慎"],
+        "staple":{"name":"糙米饭","raw_g":80,"cooked_g_est":200,"whole_grain":true,"gi":55},
+        "portion":{"edible_g":320,"protein_g":22,"fat_g":5,"carb_g":44,"fiber_g":7,"sugar_g":7,"sodium_mg":260,"salt_g":0.66,"purine_mg_per100g":150,"purine_grade":"高","energy_kcal":402},
+        "oil":5,"salt":0.6,"protein":95},
+      {"season":"冬","name":"芋艿鸡腿小炒","method":"少油快炒","tags":["禽类"],
+        "staple":{"name":"黑米饭","raw_g":75,"cooked_g_est":190,"whole_grain":true,"gi":50},
+        "portion":{"edible_g":310,"protein_g":30,"fat_g":9,"carb_g":38,"fiber_g":6,"sugar_g":6,"sodium_mg":340,"salt_g":0.86,"purine_mg_per100g":95,"purine_grade":"中","energy_kcal":455},
+        "oil":7,"salt":0.8,"protein":120},
+      {"season":"四季","name":"葱油鸡（去皮减油版）","method":"白斩/淋汁","tags":["本帮清淡化","禽类"],
+        "staple":{"name":"糙米饭","raw_g":80,"cooked_g_est":200,"whole_grain":true,"gi":55},
+        "portion":{"edible_g":300,"protein_g":30,"fat_g":7,"carb_g":36,"fiber_g":5,"sugar_g":5,"sodium_mg":320,"salt_g":0.81,"purine_mg_per100g":95,"purine_grade":"中","energy_kcal":430},
+        "oil":5,"salt":0.7,"protein":120},
+      {"season":"四季","name":"清蒸河虾仁","method":"清蒸","tags":["鱼虾类","痛风慎"],
+        "staple":{"name":"玉米饭","raw_g":80,"cooked_g_est":200,"whole_grain":true,"gi":55},
+        "portion":{"edible_g":280,"protein_g":29,"fat_g":6,"carb_g":34,"fiber_g":4,"sugar_g":5,"sodium_mg":300,"salt_g":0.76,"purine_mg_per100g":200,"purine_grade":"高","energy_kcal":405},
+        "oil":5,"salt":0.6,"protein":115},
+      {"season":"四季","name":"清烩百叶结冬瓜","method":"清烩","tags":["豆制品"],
+        "staple":{"name":"燕麦饭","raw_g":80,"cooked_g_est":200,"whole_grain":true,"gi":50},
+        "portion":{"edible_g":320,"protein_g":24,"fat_g":6,"carb_g":42,"fiber_g":8,"sugar_g":6,"sodium_mg":260,"salt_g":0.66,"purine_mg_per100g":70,"purine_grade":"中","energy_kcal":410},
+        "oil":5,"salt":0.6,"protein":90}
+    ];
+
+    const BMI_SEGMENTS = [
+      {max:18.5, label:'偏瘦', energy:'建议 1800-1900 kcal/日', protein:'优质蛋白 70-80g/日', advice:'增加全谷薯类与富含优质蛋白的菜品，关注铁锌摄入。'},
+      {max:24, label:'适中', energy:'建议 1600-1800 kcal/日', protein:'优质蛋白 65-75g/日', advice:'维持现有饮食结构，可关注彩色蔬果搭配。'},
+      {max:28, label:'超重', energy:'建议 1500-1600 kcal/日', protein:'优质蛋白 60-70g/日', advice:'控制油盐糖，增加蒸煮类烹调并配合适量运动。'},
+      {max:Infinity, label:'肥胖', energy:'建议 1300-1500 kcal/日', protein:'优质蛋白 55-65g/日', advice:'重点控制精制碳水与饱和脂肪，分次少量进食并配合医生随访。'}
+    ];
+    const MEAL_SPLIT = {breakfast:0.28, lunch:0.4, dinner:0.32};
+    const MEAL_SEQUENCE = ['breakfast','lunch','dinner'];
+    const MEAL_LABEL_MAP = {'早餐':'breakfast','午餐':'lunch','晚餐':'dinner'};
+    const MEAL_KEY_LABEL = {breakfast:'早餐', lunch:'午餐', dinner:'晚餐'};
+    const MEAL_LOG_KEY = 'elderly_meal_log_v1';
+
+    const TEA_SUGGESTIONS = {
+      GEN: [
+        {title:'桂花陈皮舒缓饮', note:'桂花+陈皮，缓解油腻助消化。'},
+        {title:'黄芪红枣暖胃饮', note:'轻补气血，适合体力下降时饮用。'}
+      ],
+      HTN: [
+        {title:'山楂决明平压茶', note:'山楂+决明子，辅助软化血管。'},
+        {title:'芹菜荷叶利水茶', note:'清香利水，帮助平稳血压。'}
+      ],
+      DM: [
+        {title:'桑叶苦荞控糖茶', note:'桑叶搭配苦荞，帮助缓释血糖。'},
+        {title:'黄连草本降糖茶', note:'搭配黄精/罗汉果，口感微甜低糖。'}
+      ],
+      HLD: [
+        {title:'决明菊花清脂茶', note:'帮助调节血脂，缓解视疲劳。'},
+        {title:'山楂洛神代谢茶', note:'酸甜解腻，促进脂质代谢。'}
+      ],
+      CHD: [
+        {title:'麦冬丹参护心茶', note:'麦冬+丹参，兼顾润燥护心。'},
+        {title:'山楂桂花舒胸茶', note:'山楂解腻，桂花疏肝理气。'}
+      ],
+      CKD_Gout: [
+        {title:'桑叶玉米须排浊茶', note:'清利湿热，注意控制饮量。'},
+        {title:'金银花蒲公英清肾茶', note:'金银花+蒲公英，帮助控制炎症。'}
+      ]
+    };
+
+    const SEASONAL_TEA_RECIPES = {
+      '春': [
+        {title:'茉莉玫瑰醒春饮', detail:'玫瑰6g、茉莉6g、绿茶，芳香解郁。'},
+        {title:'生姜紫苏御寒饮', detail:'生姜5片、紫苏10g、红糖，驱寒暖胃。'}
+      ],
+      '夏': [
+        {title:'桂花酸梅生津饮', detail:'乌梅25g、山楂10g、陈皮3g、甘草4g，酸甜解暑。'},
+        {title:'薏米绿豆利湿饮', detail:'生/熟薏米各30g、绿豆30g、玉米须30g，利湿清热。'}
+      ],
+      '秋': [
+        {title:'山药雪梨滋肺饮', detail:'山药1根、雪梨1只、枸杞、冰糖，润燥护肺。'},
+        {title:'桑枝橘络舒络饮', detail:'桑枝15g、橘络6g、丝瓜络6g，舒筋通络。'}
+      ],
+      '冬': [
+        {title:'莲子红枣养心饮', detail:'莲子15g、莲子心1.5g、红枣5枚、桂圆3枚，温补养心。'},
+        {title:'枸杞桑菊明目饮', detail:'桑叶15g、白菊15g、枸杞10g，清肝明目。'}
+      ]
+    };
+
+    const FRUIT_SUGGESTIONS = {
+      GEN: [
+        {title:'苹果+猕猴桃+蓝莓', note:'维生素C与抗氧化搭配，适合日常补充。', portion:{energy_kcal:95, protein_g:1.8, fat_g:0.8, carb_g:23, fiber_g:4.6, sugar_g:16, sodium_mg:8, salt_g:0.02}}
+      ],
+      HTN: [
+        {title:'香蕉（半根）+奇异果', note:'补钾助稳压，注意控制份量。', portion:{energy_kcal:110, protein_g:2.4, fat_g:0.8, carb_g:26, fiber_g:4.5, sugar_g:15, sodium_mg:5, salt_g:0.01}}
+      ],
+      DM: [
+        {title:'草莓+火龙果（红心）', note:'低GI组合，控制单糖波动。', portion:{energy_kcal:90, protein_g:2.1, fat_g:0.9, carb_g:20, fiber_g:5.2, sugar_g:11, sodium_mg:7, salt_g:0.02}},
+        {title:'牛油果+坚果碎', note:'优质脂肪助延缓血糖上升。', portion:{energy_kcal:140, protein_g:3.5, fat_g:11, carb_g:9, fiber_g:6, sugar_g:3, sodium_mg:4, salt_g:0.01}}
+      ],
+      HLD: [
+        {title:'柚子瓣+苹果片', note:'增加可溶性纤维，帮助调脂。', portion:{energy_kcal:100, protein_g:1.6, fat_g:0.4, carb_g:24, fiber_g:4.8, sugar_g:16, sodium_mg:6, salt_g:0.02}}
+      ],
+      CHD: [
+        {title:'山楂片（温水泡）+梨', note:'润燥护心，避免一次食用过量。', portion:{energy_kcal:85, protein_g:1.2, fat_g:0.3, carb_g:21, fiber_g:4.2, sugar_g:14, sodium_mg:4, salt_g:0.01}}
+      ],
+      CKD_Gout: [
+        {title:'低钾组合：葡萄柚瓣+苹果', note:'控制钾摄入同时补充水分。', portion:{energy_kcal:88, protein_g:1.4, fat_g:0.2, carb_g:22, fiber_g:4.1, sugar_g:14, sodium_mg:10, salt_g:0.03}}
+      ]
+    };
+
+    const DEFAULT_SIDE_DISHES = [
+      {name:'蒜蓉西兰花（4g油）', tags:['高纤','护血管'], portion:{energy_kcal:115, protein_g:5.2, fat_g:5.0, carb_g:11, fiber_g:4.5, sugar_g:4.3, sodium_mg:190, salt_g:0.48}, oil:4, salt:0.48},
+      {name:'双菇豆腐煨', tags:['护血糖','高蛋白'], portion:{energy_kcal:135, protein_g:9.8, fat_g:4.2, carb_g:12, fiber_g:3.6, sugar_g:3.5, sodium_mg:220, salt_g:0.56}, oil:4, salt:0.56, excludeDiseases:['肾脏病/痛风']},
+      {name:'清炒油麦菜', tags:['低盐','高纤'], portion:{energy_kcal:96, protein_g:3.1, fat_g:3.5, carb_g:13, fiber_g:3.9, sugar_g:3.8, sodium_mg:150, salt_g:0.38}, oil:3.5, salt:0.38},
+      {name:'凉拌苦菊黑木耳', tags:['控糖','护血脂'], portion:{energy_kcal:88, protein_g:3.4, fat_g:2.6, carb_g:13, fiber_g:5.5, sugar_g:4.0, sodium_mg:140, salt_g:0.36}, oil:2.5, salt:0.36, excludeDiseases:['肾脏病/痛风']}
+    ];
+
+    const DEFAULT_SOUPS = [
+      {name:'山药枸杞清汤', tags:['滋补','护血管'], portion:{energy_kcal:85, protein_g:7.8, fat_g:2.4, carb_g:8, fiber_g:1.8, sugar_g:2.5, sodium_mg:160, salt_g:0.41}, oil:2, salt:0.41},
+      {name:'番茄豆腐菌菇汤', tags:['控糖','轻盐'], portion:{energy_kcal:72, protein_g:6.5, fat_g:1.8, carb_g:9, fiber_g:2.2, sugar_g:3.4, sodium_mg:140, salt_g:0.36}, oil:1.5, salt:0.36},
+      {name:'玉米胡萝卜瘦肉汤', tags:['能量补充'], portion:{energy_kcal:105, protein_g:8.6, fat_g:3.1, carb_g:11, fiber_g:2.1, sugar_g:3.2, sodium_mg:210, salt_g:0.53}, oil:2.5, salt:0.53, excludeDiseases:['肾脏病/痛风']}
+    ];
+
+    const NUTRITION_GUIDELINES = {
+      healthy: {
+        '午餐': {energy:[550,700], protein:[25,35], saltMax:1.2, oil:[10,18]},
+        '晚餐': {energy:[500,650], protein:[22,32], saltMax:1.0, oil:[8,16]}
+      },
+      chronic: {
+        '午餐': {energy:[520,660], protein:[26,36], saltMax:1.0, oil:[9,16]},
+        '晚餐': {energy:[480,620], protein:[22,32], saltMax:0.9, oil:[7,14]}
+      }
+    };
+
+    // 可编辑的全局状态
+    let RULES = JSON.parse(JSON.stringify(DEFAULT_RULES));
+    let DISHES = JSON.parse(JSON.stringify(DEFAULT_DISHES));
+
+    /******** 分层参数与状态 ********/
+    const diseaseChips = $('#diseases');
+    const carePathChips = $('#carePath');
+    const diseaseSection = $('#diseaseSection');
+    const saltInput = $('#salt'); const saltHint = $('#saltHint'); const oilInput = $('#oil');
+    const heightInput = $('#height'); const weightInput = $('#weight');
+    const bmiBadge = $('#bmiBadge'); const bmiSummary = $('#bmiSummary');
+    const teaChips = $('#teaPref'); const fruitChips = $('#fruitPref');
+    const mealIndicator = $('#meal-indicator');
+    const mealLogStatusEl = $('#meal-log-status');
+    const importedIntakeEl = $('#imported-intake');
+    const mealLinkHint = $('#meal-link-hint');
+    const btnLinkBreakfast = $('#btn-link-breakfast');
+    const btnLinkDay = $('#btn-link-day');
+    const btnSaveMeal = $('#btn-save-meal');
+    const btnClearMealLog = $('#btn-clear-meal-log');
+    const menuLogChoice = $('#menu-log-choice');
+    const bfPresetSelect = $('#bfPresetSelect');
+    const bfEnergyInput = $('#bfEnergy');
+    const bfProteinInput = $('#bfProtein');
+    const bfSaltInput = $('#bfSalt');
+    const bfOilInput = $('#bfOil');
+    const bfRecordStatus = $('#bfRecordStatus');
+    const btnRecordBreakfast = $('#btn-record-breakfast');
+    const btnClearBreakfast = $('#btn-clear-breakfast');
+    const teaResult = $('#teaResult');
+    const btnTeaGenerate = $('#btn-tea-generate');
+    const btnTeaCopy = $('#btn-tea-copy');
+    let currentMealType = '午餐';
+
+    function currentCarePath(){
+      const active = carePathChips.querySelector('.chip.active');
+      return active ? active.dataset.v : 'healthy';
+    }
+    function selectedDiseaseKeys(){
+      return Array.from(diseaseChips.querySelectorAll('.chip.active')).map(c=>c.dataset.v);
+    }
+    function activeDiseaseKeys(){
+      if(currentCarePath()!=='chronic') return ['一般'];
+      const list = selectedDiseaseKeys();
+      return list.length ? list : ['一般'];
+    }
+    function mergedParams(keys){
+      // 取最严格的盐目标（最小），油区间取交集
+      let saltTargets=[], oilRanges=[];
+      keys.forEach(k=>{
+        const dp = RULES.disease_params[ DISEASE_KEY_MAP[k] || 'GEN' ];
+        if(!dp) return;
+        saltTargets.push(dp.salt_target);
+        oilRanges.push(dp.oil_range || [5,10]);
+      });
+      const minSalt = saltTargets.length ? Math.min(...saltTargets) : RULES.disease_params.GEN.salt_target;
+      const oilLow  = oilRanges.length ? Math.max(...oilRanges.map(x=>x[0])) : RULES.disease_params.GEN.oil_range[0];
+      const oilHigh = oilRanges.length ? Math.min(...oilRanges.map(x=>x[1])) : RULES.disease_params.GEN.oil_range[1];
+      return {minSalt, oilLow, oilHigh};
+    }
+    function refreshSaltOilHints(){
+      const keys = activeDiseaseKeys();
+      const {minSalt, oilLow, oilHigh} = mergedParams(keys);
+      saltInput.value = (minSalt||0.7).toFixed(1);
+      oilInput.value = `${oilLow}-${oilHigh}`;
+      saltHint.textContent = `（分型建议：≤${(minSalt||0.7).toFixed(1)}g/餐）`;
+    }
+    function syncDiseaseSection(){
+      const path = currentCarePath();
+      const isChronic = path==='chronic';
+      diseaseSection.hidden = !isChronic;
+      diseaseSection.classList.toggle('active', isChronic);
+      diseaseChips.querySelectorAll('.chip').forEach(chip=>{
+        chip.classList.toggle('disabled', !isChronic);
+        if(!isChronic) chip.classList.remove('active');
+      });
+      refreshSaltOilHints();
+    }
+    on(diseaseChips,'click', e=>{
+      if(currentCarePath()!=='chronic') return;
+      const chip=e.target.closest('.chip');
+      if(!chip) return;
+      chip.classList.toggle('active');
+      refreshSaltOilHints();
+    });
+    on(carePathChips,'click', e=>{
+      const chip = e.target.closest('.chip');
+      if(!chip || chip.classList.contains('disabled')) return;
+      carePathChips.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
+      chip.classList.add('active');
+      // 切换路径时更新盐油建议
+      syncDiseaseSection();
+    });
+    function bindSingleChoice(container){
+      on(container,'click', e=>{
+        const chip = e.target.closest('.chip');
+        if(!chip || chip.classList.contains('disabled')) return;
+        container.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
+        chip.classList.add('active');
+      });
+    }
+    bindSingleChoice(teaChips);
+    bindSingleChoice(fruitChips);
+    function getTeaPref(){ const chip = teaChips.querySelector('.chip.active'); return chip? chip.dataset.v : 'unknown'; }
+    function getFruitPref(){ const chip = fruitChips.querySelector('.chip.active'); return chip? chip.dataset.v : 'unknown'; }
+    function setMealType(meal){
+      currentMealType = meal || '午餐';
+      if(mealIndicator){
+        mealIndicator.textContent = `当前：${currentMealType}，自动继承上方身高/偏好设定。`;
+      }
+      syncImportButtons();
+      updateImportedIntakeInfo(resolveMealTargets(currentMealType));
+    }
+
+    function computeBMI(){
+      const h = parseFloat(heightInput.value);
+      const w = parseFloat(weightInput.value);
+      if(!(h>0) || !(w>0)) return null;
+      const hm = h/100;
+      if(hm<=0) return null;
+      return w/(hm*hm);
+    }
+    function resolveBmiInfo(){
+      const bmi = computeBMI();
+      if(!bmi) return null;
+      const seg = BMI_SEGMENTS.find(s=>bmi < s.max) || BMI_SEGMENTS[BMI_SEGMENTS.length-1];
+      return {...seg, bmi: Number(bmi.toFixed(1))};
+    }
+    function refreshBmi(){
+      const info = resolveBmiInfo();
+      if(!info){
+        bmiBadge.textContent = '未计算';
+        bmiSummary.innerHTML = '请填写身高体重，系统自动计算 BMI，并给出对应能量/蛋白建议。';
+        return;
+      }
+      bmiBadge.innerHTML = `<span class="badge-inline">${info.bmi}</span> ${info.label}`;
+      bmiSummary.innerHTML = `<strong>${info.label}</strong> ${info.energy}；${info.protein}。${info.advice}`;
+    }
+    ['input','blur'].forEach(ev=>{
+      on(heightInput, ev, refreshBmi);
+      on(weightInput, ev, refreshBmi);
+    });
+    function collectSuggestions(map, diseases){
+      const seen = new Set(); const items = [];
+      const keys = diseases.length ? diseases : ['一般'];
+      keys.forEach(cn=>{
+        const key = DISEASE_KEY_MAP[cn] || (cn==='一般'?'GEN':'GEN');
+        (map[key] || []).forEach(item=>{
+          if(!seen.has(item.title)){
+            items.push(item);
+            seen.add(item.title);
+          }
+        });
+      });
+      if(map.GEN){
+        map.GEN.forEach(item=>{
+          if(!seen.has(item.title)){
+            items.push(item);
+            seen.add(item.title);
+          }
+        });
+      }
+      return items;
+    }
+
+    function componentAllowed(item, diseases){
+      if(!item) return false;
+      if(item.excludeDiseases && item.excludeDiseases.some(d=>diseases.includes(d))) return false;
+      const tags = item.tags || [];
+      if(diseases.includes('糖尿病') && tags.includes('高糖')) return false;
+      if(diseases.includes('肾脏病/痛风') && tags.includes('高嘌呤')) return false;
+      return true;
+    }
+    function cloneComponent(item){ return item ? JSON.parse(JSON.stringify(item)) : null; }
+    function pickComponent(list, diseases){
+      const pool = list.filter(item=>componentAllowed(item, diseases));
+      if(!pool.length) return null;
+      const idx = Math.floor(Math.random()*pool.length);
+      return cloneComponent(pool[idx]);
+    }
+    function pickFruitComponent(fruitPref, diseases, index=0, pool){
+      if(fruitPref!=='yes') return null;
+      const fruits = (pool && pool.length ? pool : collectSuggestions(FRUIT_SUGGESTIONS, diseases));
+      if(!fruits.length) return null;
+      const fruit = cloneComponent(fruits[index % fruits.length]);
+      fruit.type = 'fruit';
+      return fruit;
+    }
+    function extractNutrition(item){
+      if(!item) return {energy:0, protein:0, fat:0, carb:0, fiber:0, sugar:0, salt:0, oil:0};
+      const portion = item.portion || {};
+      const energy = portion.energy_kcal || 0;
+      const protein = portion.protein_g || 0;
+      const fat = portion.fat_g || 0;
+      const carb = portion.carb_g || 0;
+      const fiber = portion.fiber_g || 0;
+      const sugar = portion.sugar_g || 0;
+      let salt = 0;
+      if(typeof portion.salt_g === 'number') salt = portion.salt_g;
+      else if(typeof portion.sodium_mg === 'number') salt = portion.sodium_mg / 393;
+      else if(typeof item.salt === 'number') salt = item.salt;
+      const oil = typeof item.oil === 'number' ? item.oil : Math.max(0, fat * 0.35);
+      return {energy, protein, fat, carb, fiber, sugar, salt, oil};
+    }
+    function aggregateNutrition(components){
+      return components.reduce((acc, item)=>{
+        const n = extractNutrition(item);
+        acc.energy += n.energy;
+        acc.protein += n.protein;
+        acc.fat += n.fat;
+        acc.carb += n.carb;
+        acc.fiber += n.fiber;
+        acc.sugar += n.sugar;
+        acc.salt += n.salt;
+        acc.oil += n.oil;
+        return acc;
+      }, {energy:0, protein:0, fat:0, carb:0, fiber:0, sugar:0, salt:0, oil:0});
+    }
+    function formatRangeStatus(value, range, unit){
+      const digits = unit==='kcal'?0:1;
+      const rounded = tidyNumber(value, digits);
+      if(!range || range.length!==2){
+        return {text:`${rounded}${unit||''}`, ok:true, status:'参考'};
+      }
+      const [min,max] = range;
+      const ok = value>=min && value<=max;
+      const status = value<min ? '偏低' : (value>max ? '偏高' : '达标');
+      return {text:`${rounded}${unit||''}（目标 ${tidyNumber(min,digits)}-${tidyNumber(max,digits)}${unit||''}，${status}）`, ok, status};
+    }
+    function formatMaxStatus(value, max, unit){
+      const digits = unit==='g'?2:1;
+      const rounded = tidyNumber(value, digits);
+      if(typeof max!=='number') return {text:`${rounded}${unit||''}`, ok:true, status:'参考'};
+      const ok = value<=max;
+      const status = ok ? '达标' : '偏高';
+      return {text:`${rounded}${unit||''}（≤${tidyNumber(max,digits)}${unit||''}，${status}）`, ok, status};
+    }
+    function buildGuidelineSummary(totals, path, meal, overrides){
+      const cfgGroup = NUTRITION_GUIDELINES[path] || NUTRITION_GUIDELINES.healthy;
+      const cfg = {...(cfgGroup[meal] || cfgGroup['午餐'])};
+      const energyRange = mergeRange(cfg.energy, overrides?.energy);
+      const proteinRange = mergeRange(cfg.protein, overrides?.protein);
+      const saltMax = typeof overrides?.saltMax === 'number' ? Math.min(cfg.saltMax, overrides.saltMax) : cfg.saltMax;
+      const oilRange = overrides?.oil || cfg.oil;
+      const energy = formatRangeStatus(totals.energy, energyRange, 'kcal');
+      const protein = formatRangeStatus(totals.protein, proteinRange, 'g');
+      const salt = formatMaxStatus(totals.salt, saltMax, 'g');
+      const oil = formatRangeStatus(totals.oil, oilRange, 'g');
+      return {config:{...cfg, energy:energyRange, protein:proteinRange, saltMax, oil:oilRange}, energy, protein, salt, oil, meta:overrides?.meta};
+    }
+    function formatTotalsLine(label, totals, guideline){
+      return `套餐${label}总量：能量 ${guideline.energy.text}；蛋白 ${guideline.protein.text}；盐 ${guideline.salt.text}；油 ${guideline.oil.text}`;
+    }
+    function tidyNumber(num, digits=1){
+      if(!isFinite(num)) return '0';
+      const fixed = num.toFixed(digits);
+      return digits>0 ? fixed.replace(/\.?0+$/,'') : fixed;
+    }
+    function mergeRange(base, override){
+      if(!override) return base;
+      if(!base) return override;
+      const min = Math.max(base[0], override[0]);
+      const max = Math.min(base[1], override[1]);
+      if(!isFinite(min) || !isFinite(max) || min>=max) return override;
+      return [min, max];
+    }
+    function formatRangeText(range, unit=''){
+      if(!range) return '—';
+      const digits = unit==='kcal'?0:1;
+      return `${tidyNumber(range[0], digits)}-${tidyNumber(range[1], digits)}${unit}`;
+    }
+    function scaleComponent(item, factor){
+      if(!item || typeof factor!=='number') return;
+      if(item.staple && typeof item.staple.raw_g === 'number'){
+        item.staple.raw_g = Math.max(10, Math.round(item.staple.raw_g * factor));
+        if(typeof item.staple.cooked_g_est === 'number'){
+          item.staple.cooked_g_est = Math.max(10, Math.round(item.staple.cooked_g_est * factor));
+        }
+      }
+      if(typeof item.protein === 'number') item.protein = Math.round(item.protein * factor);
+      if(typeof item.oil === 'number') item.oil = +(item.oil * factor).toFixed(1);
+      if(typeof item.salt === 'number') item.salt = +(item.salt * factor).toFixed(2);
+      if(item.portion){
+        Object.keys(item.portion).forEach(key=>{
+          if(typeof item.portion[key] === 'number'){
+            const digits = key.includes('energy') ? 0 : 2;
+            item.portion[key] = +(item.portion[key] * factor).toFixed(digits);
+          }
+        });
+      }
+    }
+    function applyMealScaling(comp, overrides){
+      if(!comp || !comp.components || !overrides || !overrides.energy) return {factor:1};
+      const totals = comp.totals;
+      if(!totals || !totals.energy) return {factor:1};
+      const targetRange = overrides.energy;
+      const targetMid = (targetRange[0] + targetRange[1]) / 2;
+      if(!isFinite(targetMid) || targetMid<=0) return {factor:1};
+      let factor = targetMid / totals.energy;
+      factor = clamp(factor, 0.8, 1.2);
+      if(Math.abs(factor-1) < 0.05){
+        return {factor:1};
+      }
+      ['main','side','soup','fruit'].forEach(key=> scaleComponent(comp[key], factor));
+      comp.totals = aggregateNutrition(comp.components.filter(Boolean));
+      return {factor: Number(factor.toFixed(2))};
+    }
+
+    refreshBmi();
+    syncDiseaseSection();
+
+    /******** 三餐联动 & 日志 ********/
+    function todayKey(){ return new Date().toISOString().slice(0,10); }
+    function freshMealLog(){ return {date: todayKey(), breakfast:null, lunch:null, dinner:null}; }
+    function loadMealLog(){
+      try{
+        const raw = JSON.parse(localStorage.getItem(MEAL_LOG_KEY)||'{}');
+        if(raw.date === todayKey()){
+          return {...freshMealLog(), ...raw};
+        }
+      }catch(e){ /* ignore */ }
+      return freshMealLog();
+    }
+    function persistMealLog(){ localStorage.setItem(MEAL_LOG_KEY, JSON.stringify(mealLog)); }
+    function formatIntakeEntry(entry){
+      if(!entry) return '—';
+      return `${Math.round(entry.energy||0)}kcal/${(entry.protein||0).toFixed(1)}g`;
+    }
+    function updateMealLogStatus(){
+      if(mealLogStatusEl){
+        const summary = MEAL_SEQUENCE.map(key=> `${MEAL_KEY_LABEL[key]}：${formatIntakeEntry(mealLog[key])}`).join('｜');
+        mealLogStatusEl.textContent = summary;
+      }
+      if(bfRecordStatus){
+        bfRecordStatus.textContent = mealLog.breakfast ? `已记录：${formatIntakeEntry(mealLog.breakfast)}` : '未记录早餐摄入';
+      }
+    }
+    function clearMealLog(){
+      mealLog = freshMealLog();
+      persistMealLog();
+      appliedIntake.lunch = false;
+      appliedIntake.dinner = false;
+      updateMealLogStatus();
+      updateImportedIntakeInfo(null);
+      syncImportButtons();
+    }
+    function recordMealIntake(mealKey, totals, meta={}){
+      mealLog.date = todayKey();
+      mealLog[mealKey] = {
+        energy: Number(totals.energy||0),
+        protein: Number(totals.protein||0),
+        salt: Number(totals.salt||0),
+        oil: Number(totals.oil||0),
+        label: meta.label || '',
+        menu: meta.menu || '',
+        time: new Date().toLocaleTimeString('zh-CN', {hour:'2-digit', minute:'2-digit'})
+      };
+      persistMealLog();
+      updateMealLogStatus();
+    }
+    function collectConsumed(mealKey){
+      const idx = MEAL_SEQUENCE.indexOf(mealKey);
+      const keys = idx>0 ? MEAL_SEQUENCE.slice(0, idx) : [];
+      const entries = keys.map(key=>({key, entry: mealLog[key]})).filter(item=>!!item.entry);
+      const total = entries.reduce((acc,{entry})=>{
+        acc.energy += entry.energy||0;
+        acc.protein += entry.protein||0;
+        acc.salt += entry.salt||0;
+        acc.oil += entry.oil||0;
+        return acc;
+      }, {energy:0, protein:0, salt:0, oil:0});
+      return {...total, entries};
+    }
+    function describeConsumed(consumed){
+      if(!consumed || !consumed.entries || !consumed.entries.length) return '无前餐记录';
+      return consumed.entries.map(item=>{
+        const label = MEAL_KEY_LABEL[item.key] || item.key;
+        return `${label}${Math.round(item.entry.energy||0)}kcal/${(item.entry.protein||0).toFixed(1)}g`;
+      }).join('，');
+    }
+    function getRemainingShare(mealKey){
+      const idx = MEAL_SEQUENCE.indexOf(mealKey);
+      if(idx<0) return MEAL_SPLIT.lunch+MEAL_SPLIT.dinner;
+      return MEAL_SEQUENCE.slice(idx).reduce((sum,key)=> sum + (MEAL_SPLIT[key]||0), 0);
+    }
+    function computeDailyTargets(){
+      const weight = parseFloat(weightInput.value);
+      const w = (weight && weight>0) ? weight : 60;
+      const bmi = computeBMI();
+      let energyPerKg = 25;
+      let proteinPerKg = 1.0;
+      if(bmi){
+        if(bmi < 18.5){ energyPerKg = 30; proteinPerKg = 1.2; }
+        else if(bmi < 24){ energyPerKg = 26; proteinPerKg = 1.0; }
+        else if(bmi < 28){ energyPerKg = 23; proteinPerKg = 0.95; }
+        else { energyPerKg = 20; proteinPerKg = 0.9; }
+      }
+      const energyMid = w * energyPerKg;
+      const proteinMid = w * proteinPerKg;
+      return {
+        energy:[Math.max(energyMid*0.92, 1200), Math.min(energyMid*1.08, 2600)],
+        protein:[Math.max(proteinMid*0.9, 50), Math.min(proteinMid*1.1, 110)]
+      };
+    }
+    function resolveMealTargets(mealLabel){
+      const mealKey = MEAL_LABEL_MAP[mealLabel] || 'lunch';
+      const daily = computeDailyTargets();
+      if(!daily) return null;
+      const share = MEAL_SPLIT[mealKey] || 0.33;
+      const applyImport = appliedIntake[mealKey];
+      const consumed = collectConsumed(mealKey);
+      let energyRange = [daily.energy[0]*share, daily.energy[1]*share];
+      let proteinRange = [daily.protein[0]*share, daily.protein[1]*share];
+      let note = '';
+      if(applyImport && consumed.entries.length){
+        const remainEnergy = [
+          Math.max(daily.energy[0] - consumed.energy, 0),
+          Math.max(daily.energy[1] - consumed.energy, 0)
+        ];
+        const remainProtein = [
+          Math.max(daily.protein[0] - consumed.protein, 0),
+          Math.max(daily.protein[1] - consumed.protein, 0)
+        ];
+        const remainingShare = getRemainingShare(mealKey) || share;
+        const ratio = share / remainingShare;
+        energyRange = [remainEnergy[0]*ratio, remainEnergy[1]*ratio];
+        proteinRange = [remainProtein[0]*ratio, remainProtein[1]*ratio];
+        note = `已扣除：${describeConsumed(consumed)}。`;
+      }else if(applyImport && !consumed.entries.length){
+        note = '尚未记录前餐摄入，暂按默认配额计算。';
+      }
+      return {energy:energyRange, protein:proteinRange, meta:{applied:applyImport && consumed.entries.length>0, note, consumed}};
+    }
+    function updateImportedIntakeInfo(target){
+      if(!importedIntakeEl) return;
+      if(target && target.meta){
+        if(target.meta.applied){
+          importedIntakeEl.textContent = `${target.meta.note || ''}本餐配额 ${formatRangeText(target.energy,'kcal')}`;
+        }else if(target.meta.note){
+          importedIntakeEl.textContent = target.meta.note;
+        }else{
+          importedIntakeEl.textContent = '联动：未扣减前餐摄入。';
+        }
+      }else{
+        importedIntakeEl.textContent = '尚未导入前餐摄入';
+      }
+    }
+
+    let mealLog = loadMealLog();
+    const appliedIntake = {lunch:false, dinner:false};
+    updateMealLogStatus();
+    updateImportedIntakeInfo(null);
+
+    function buildTeaPlan(){
+      const teaPref = getTeaPref();
+      if(teaPref==='unknown') return '请先在“饮茶偏好”中选择喝茶或不喝茶。';
+      if(teaPref==='no') return '已选择“不喝茶”，本时段不额外推荐茶饮。';
+      const season = $('#season').value;
+      const path = currentCarePath();
+      const diseases = path==='chronic' ? selectedDiseaseKeys() : [];
+      const diseaseTeas = collectSuggestions(TEA_SUGGESTIONS, diseases).slice(0,2);
+      const generalTeas = collectSuggestions(TEA_SUGGESTIONS, ['一般']).slice(0,2);
+      const seasonalTeas = (SEASONAL_TEA_RECIPES[season] || []).slice(0,2);
+      const lines = [`【${season}茶饮推荐】`];
+      if(seasonalTeas.length){
+        seasonalTeas.forEach((item,idx)=> lines.push(`${idx+1}. ${item.title}｜${item.detail}`));
+      }
+      if(diseaseTeas.length){
+        lines.push('慢病强化：');
+        diseaseTeas.forEach(item=> lines.push(`- ${item.title}：${item.note}`));
+      }else if(generalTeas.length){
+        lines.push('常规舒缓：');
+        generalTeas.forEach(item=> lines.push(`- ${item.title}：${item.note}`));
+      }
+      lines.push('饮用提示：每日 1-2 次，控制水温 60-80℃，如正在服药请提前咨询医生。');
+      return lines.join('\n');
+    }
+
+    /******** 菜库与规则装载/摘要 ********/
+    function summarizeDataset(){
+      const bySeason = {};
+      DISHES.forEach(d=>{ bySeason[d.season] = (bySeason[d.season]||0)+1; });
+      $('#dataset-summary').textContent = Object.entries(bySeason).map(([k,v])=>`${k}：${v} 道`).join('； ') || '—';
+    }
+    function summarizeRules(){
+      const w = RULES.weights;
+      const keys = Object.keys(RULES.disease_params||{}).length;
+      $('#rules-summary').textContent = `权重：主食/蛋白${w.staple_protein}，油盐${w.oil_salt}，慢病${w.disease_fit}，做法${w.method}；病种配置 ${keys} 组。`;
+    }
+    summarizeDataset(); summarizeRules();
+    on($('#btn-load-dataset'),'click', ()=>{
+      try{ const arr = JSON.parse($('#dataset').value||'[]'); if(!Array.isArray(arr)) throw new Error('不是数组'); DISHES = arr; summarizeDataset(); alert('菜库已载入'); }
+      catch(e){ alert('载入失败：'+e.message); }
+    });
+    on($('#btn-fill-default-dataset'),'click', ()=>{ $('#dataset').value = JSON.stringify(DEFAULT_DISHES, null, 2); });
+    on($('#btn-load-rules'),'click', ()=>{
+      try{ const obj = JSON.parse($('#rules').value||'{}'); if(!obj || !obj.weights) throw new Error('缺少权重'); RULES = obj; summarizeRules(); refreshSaltOilHints(); alert('评分规则已载入'); }
+      catch(e){ alert('载入失败：'+e.message); }
+    });
+    on($('#btn-fill-default-rules'),'click', ()=>{ $('#rules').value = JSON.stringify(DEFAULT_RULES, null, 2); });
+
+    // 初始化文本框填充默认值，便于复制修改
+    $('#dataset').value = JSON.stringify(DEFAULT_DISHES, null, 2);
+    $('#rules').value = JSON.stringify(DEFAULT_RULES, null, 2);
+
+    /******** 评分核心（读取扩展字段 & 参数化规则） ********/
+    function parseRange(s){
+      if(!s) return [0,0];
+      if(String(s).includes('-')){ const [a,b]=s.split('-').map(x=>parseFloat(x.trim())); return [a||0,b||a||0] }
+      const v=parseFloat(s); return [v||0,v||0];
+    }
+    function getStapleRawG(d){
+      if(d.staple && typeof d.staple==='object' && typeof d.staple.raw_g==='number') return d.staple.raw_g;
+      // 兼容旧：从文本尝试匹配"生重XXg"
+      if(typeof d.staple==='string'){ const m = d.staple.match(/生重\s*(\d+\.?\d*)\s*g/); if(m) return parseFloat(m[1]); }
+      return NaN;
+    }
+    function getSaltG(d){
+      const p = d.portion || {};
+      if(typeof p.salt_g === 'number') return p.salt_g;
+      if(typeof p.sodium_mg === 'number') return p.sodium_mg / 393;
+      if(typeof d.salt === 'number') return d.salt;
+      return 0;
+    }
+    function getOilG(d){ return typeof d.oil==='number' ? d.oil : 0; }
+    function getProteinCookedG(d){
+      if(typeof d.protein==='number') return d.protein;
+      // 估算：每 1g 蛋白≈ 4g 熟肉/鱼（粗略），用于兼容
+      if(d.portion && typeof d.portion.protein_g==='number') return clamp(d.portion.protein_g*4, 80, 200);
+      return 0;
+    }
+    function tagsStr(d){ return (d.tags||[]).join(' ') + ' ' + (d.name||'') + ' ' + (d.method||'') + ' ' + (d.staple?.name||d.staple||''); }
+
+    function scoreStapleProtein(d){
+      const W = RULES.weights.staple_protein; // 30
+      // 拆成两个 15 分
+      const S = 15, P = 15;
+      let stapleScore = 10;
+      const raw = getStapleRawG(d);
+      const whole = !!(d.staple && d.staple.whole_grain===true);
+      if(!isNaN(raw) && raw >= RULES.staple.raw_g_opt_min && raw <= RULES.staple.raw_g_opt_max) stapleScore = 15;
+      if(whole) stapleScore = Math.min(15, stapleScore + (RULES.staple.whole_grain_bonus||0));
+      if(whole===false) stapleScore = Math.max(0, stapleScore - (RULES.staple.non_whole_penalty||0));
+
+      let proteinScore = 12;
+      const pc = getProteinCookedG(d);
+      if(pc>=RULES.protein.min && pc<=RULES.protein.max) proteinScore = 15;
+      else{
+        const over = pc<RULES.protein.min ? (RULES.protein.min-pc) : (pc-RULES.protein.max);
+        const pen = clamp(over/20, 0, 1)* (RULES.protein.out_of_range_max_penalty||8);
+        proteinScore = Math.max(7, 15 - pen);
+      }
+      return {score: Math.round(stapleScore + proteinScore), stapleScore:Math.round(stapleScore), proteinScore:Math.round(proteinScore)};
+    }
+
+    function scoreOilSalt(d, diseaseKeys){
+      const W = RULES.weights.oil_salt; // 35 → 盐满17 + 油满18
+      // 合并病种：选最严格的盐目标与油区间交集
+      const {minSalt, oilLow, oilHigh} = mergedParams(diseaseKeys);
+      const salt_g = getSaltG(d);
+      const oil_g = getOilG(d);
+      // 盐分片段：≤target 满分；target~toler 线性至 mid；>toler 低分
+      let saltScore = RULES.salt_curve.full;
+      const keys = diseaseKeys.map(k=>DISEASE_KEY_MAP[k]||'GEN');
+      const mainKey = keys.includes('HTN') ? 'HTN' : (keys[0]||'GEN');
+      const dp = RULES.disease_params[mainKey] || RULES.disease_params.GEN;
+      const target = minSalt;
+      const toler  = dp.salt_toler || (target+0.3);
+      if(salt_g <= target){ saltScore = RULES.salt_curve.full; }
+      else if(salt_g > target && salt_g <= toler){
+        const t = (salt_g - target) / Math.max(0.001, (toler - target));
+        saltScore = Math.round( lerp(RULES.salt_curve.full, RULES.salt_curve.mid, t) );
+      }else{
+        saltScore = RULES.salt_curve.low;
+      }
+
+      // 油量：在区间满分，否则给固定较低分（可扩展为线性）
+      let oilScore = (oil_g>=oilLow && oil_g<=oilHigh) ? RULES.oil_curve.in_range : RULES.oil_curve.out;
+
+      return {score: Math.round(saltScore + oilScore), saltScore, oilScore, saltRange:[oilLow,oilHigh], saltTarget:target};
+    }
+
+    function scoreDiseaseFitAndMethod(d, diseaseKeys){
+      let fit = 10; // 基础
+      const allTags = tagsStr(d);
+      // 标签加分
+      const tb = RULES.tags_bonus||{};
+      Object.keys(tb).forEach(k=>{ if((d.tags||[]).includes(k)) fit += tb[k]; });
+
+      // 病种特异扣分
+      diseaseKeys.forEach(cn=>{
+        const key = DISEASE_KEY_MAP[cn] || 'GEN';
+        const dp = RULES.disease_params[key]||{};
+        // DM：糖与GI
+        if(key==='DM'){
+          const sugar = d.portion?.sugar_g; if(typeof sugar==='number'){
+            if(sugar> (dp.sugar_warn_g||8)){ fit -= clamp((sugar - (dp.sugar_warn_g||8))/((dp.sugar_max_g||15)-(dp.sugar_warn_g||8)+0.01)*6, 0, 6); }
+          }
+          const gi = d.staple?.gi; if(typeof gi==='number' && dp.gi_warn && gi>dp.gi_warn) fit -= clamp((gi-dp.gi_warn)/20*4, 0, 4);
+        }
+        // HLD/CHD：脂肪
+        if(key==='HLD' || key==='CHD'){
+          const fat = d.portion?.fat_g; if(typeof fat==='number'){
+            const warn = dp.fat_warn_g||15, mx = dp.fat_max_g||25;
+            if(fat>warn) fit -= clamp((fat-warn)/(mx-warn+0.01)*6, 0, 6);
+          }
+        }
+        // CKD/痛风：嘌呤
+        if(key==='CKD_Gout'){
+          const pg = d.portion?.purine_grade;
+          const penMap = dp.purine_penalty||{};
+          if(pg && penMap[pg]!=null) fit -= penMap[pg];
+        }
+        // 禁忌关键词
+        const forb = (RULES.forbidden_penalties||{})[key]||[];
+        forb.forEach(f=>{ if(f.match && allTags.includes(f.match)) fit -= (f.penalty||2); });
+      });
+
+      // 做法
+      let methodScore = 8;
+      const good = new RegExp((RULES.method_good||[]).join('|'));
+      if(good.test(d.method||'')) methodScore = 10;
+      (RULES.method_penalties||[]).forEach(mp=>{
+        if(mp.match && (d.method||'').includes(mp.match)) methodScore -= (mp.penalty||1);
+      });
+      methodScore = clamp(methodScore, 0, RULES.weights.method);
+
+      // 归一上限（fit ≤ disease_fit权重）
+      fit = clamp(fit, 0, RULES.weights.disease_fit);
+
+      return {fitScore: Math.round(fit), methodScore: Math.round(methodScore)};
+    }
+
+    /******** 生成套餐 ********/
+    const scoreEl = $('#score'); const oilSaltEl = $('#oilSalt'); const spEl = $('#stapleProtein'); const fitEl = $('#diseaseFit'); const recipeEl = $('#recipe');
+    let lastGeneratedMenus = [];  // 保存最后生成的主菜
+    let lastMenuIndex = 0;  // 记录上次选择的菜单索引（保留以兼容旧逻辑）
+    let lastCompositions = [];
+    
+    function pickSeasonal(season){ return DISHES.filter(d=>d.season===season || d.season==='四季'); }
+    
+    // 洗牌算法，增加随机性
+    function shuffle(array) {
+      const arr = [...array];
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
+    
+    function buildMenus(){
+      // 清除之前的显示
+      scoreEl.textContent = '计算中...';
+      oilSaltEl.textContent = '计算中...';
+      spEl.textContent = '计算中...';
+      fitEl.textContent = '计算中...';
+      
+      const path = currentCarePath();
+      const season = $('#season').value;
+      const meal = currentMealType;
+      const proteinPref = $('#proteinPref').value;
+      const mealKey = MEAL_LABEL_MAP[meal] || 'lunch';
+      const dynamicTarget = resolveMealTargets(meal);
+      const bmiValue = computeBMI();
+      const rawDiseases = selectedDiseaseKeys();
+      const diseases = path==='chronic' ? (rawDiseases.length ? rawDiseases : ['一般']) : ['一般'];
+      if(path==='chronic' && !rawDiseases.length){
+        scoreEl.textContent = '—';
+        oilSaltEl.textContent = '请先选择慢病类型';
+        spEl.textContent = '—';
+        fitEl.textContent = '—';
+        recipeEl.textContent = '请先在“慢病细分”中选择至少一种病种，再点击生成。';
+        lastGeneratedMenus = [];
+        return;
+      }
+      const avoidList = ($('#avoid').value||'').split(',').map(s=>s.trim()).filter(Boolean);
+
+      // 获取用户设置的盐油限制
+      const saltLimit = parseFloat($('#salt').value) || 0.7;
+      const oilRange = parseRange($('#oil').value);
+
+      let pool = pickSeasonal(season);
+      
+      // 1. 根据盐限制筛选（允许10%的容差）
+      pool = pool.filter(d => {
+        const salt = getSaltG(d);
+        return salt <= saltLimit * 1.1; // 允许10%容差
+      });
+      
+      // 2. 根据油范围筛选（允许小幅超出）
+      pool = pool.filter(d => {
+        const oil = getOilG(d);
+        return oil >= oilRange[0] * 0.9 && oil <= oilRange[1] * 1.1;
+      });
+      
+      // 3. 根据慢病严格筛选
+      if(diseases.includes('肾脏病/痛风')) {
+        pool = pool.filter(d => {
+          const tags = tagsStr(d);
+          // 排除高嘌呤食物
+          if(/虾|海鲜|痛风慎|蘑菇|内脏|浓汤/.test(tags)) return false;
+          // 检查嘌呤等级
+          if(d.portion?.purine_grade === '高') return false;
+          return true;
+        });
+      }
+      
+      if(diseases.includes('糖尿病')) {
+        pool = pool.filter(d => {
+          const tags = tagsStr(d);
+          // 排除高糖和高GI食物
+          if(/(含糖|甜|白粥|糯米)/.test(tags)) return false;
+          if((d.flags||[]).includes('糖尿病慎粥')) return false;
+          // 检查GI值
+          if(d.staple?.gi && d.staple.gi > 70) return false;
+          // 检查糖含量
+          if(d.portion?.sugar_g && d.portion.sugar_g > 10) return false;
+          return true;
+        });
+      }
+      
+      if(diseases.includes('高血压')) {
+        pool = pool.filter(d => {
+          const salt = getSaltG(d);
+          // 高血压患者更严格的盐限制
+          return salt <= 0.7;
+        });
+      }
+      
+       if(diseases.includes('高脂血症') || diseases.includes('冠心病')) {
+         pool = pool.filter(d => {
+           // 限制脂肪含量
+           if(d.portion?.fat_g && d.portion.fat_g > 20) return false;
+           // 限制油量
+           const oil = getOilG(d);
+           return oil <= 8;
+         });
+       }
+
+      if(bmiValue){
+        if(bmiValue >= 28){
+          pool = pool.filter(d => (d.portion?.energy_kcal||0) <= 430);
+          pool = pool.sort((a,b)=> (a.portion?.energy_kcal||0) - (b.portion?.energy_kcal||0));
+        }else if(bmiValue < 18.5){
+          pool = pool.sort((a,b)=> (b.portion?.energy_kcal||0) - (a.portion?.energy_kcal||0));
+        }
+      }
+      
+      // 4. 根据禁忌食材严格过滤
+      pool = pool.filter(d => {
+        const allText = tagsStr(d).toLowerCase();
+        return !avoidList.some(avoid => {
+          const avoidLower = avoid.toLowerCase();
+          return allText.includes(avoidLower);
+        });
+      });
+      
+      // 5. 根据蛋白质偏好进行筛选和排序
+      if(proteinPref === '鱼类优先') {
+        // 优先保留鱼类，然后排序
+        const fishDishes = pool.filter(d => d.tags?.includes('鱼类') || d.tags?.includes('鱼虾类'));
+        const otherDishes = pool.filter(d => !d.tags?.includes('鱼类') && !d.tags?.includes('鱼虾类'));
+        pool = [...fishDishes, ...otherDishes];
+      } else if(proteinPref === '豆类/蛋奶') {
+        // 优先保留豆制品
+        const beanDishes = pool.filter(d => d.tags?.includes('豆制品') || /豆腐|豆|蛋|奶/.test(d.name));
+        const otherDishes = pool.filter(d => !d.tags?.includes('豆制品') && !/豆腐|豆|蛋|奶/.test(d.name));
+        pool = [...beanDishes, ...otherDishes];
+      } else if(proteinPref === '禽畜适量') {
+        // 优先保留禽类
+        const meatDishes = pool.filter(d => d.tags?.includes('禽类') || /鸡|鸭|猪|牛/.test(d.name));
+        const otherDishes = pool.filter(d => !d.tags?.includes('禽类') && !/鸡|鸭|猪|牛/.test(d.name));
+        pool = [...meatDishes, ...otherDishes];
+      }
+      
+      // 6. 根据餐别进一步调整（晚餐倾向清淡）
+      if(meal === '晚餐') {
+        pool = pool.sort((a, b) => {
+          // 晚餐优先选择清淡的
+          const aLight = /清蒸|清炖|水煮|清烩/.test(a.method) ? 1 : 0;
+          const bLight = /清蒸|清炖|水煮|清烩/.test(b.method) ? 1 : 0;
+          return bLight - aLight;
+        });
+      }
+      
+      // 先打乱顺序增加随机性
+      pool = shuffle(pool);
+
+      // 改进选择逻辑：如果有足够的菜品，尽量选择不同的
+      const pick2 = (arr) => {
+        if (arr.length < 2) return arr;
+        
+        const out = [];
+        const used = new Set();
+        
+        // 如果之前生成过菜单，尝试选择不同的菜品
+        if (lastGeneratedMenus.length > 0) {
+          const lastNames = lastGeneratedMenus.map(d => d.name);
+          // 优先选择上次没选中的菜品
+          const newChoices = arr.filter(d => !lastNames.includes(d.name));
+          if (newChoices.length >= 2) {
+            // 从新选择中随机选2个
+            const shuffled = shuffle(newChoices);
+            return [shuffled[0], shuffled[1]];
+          }
+        }
+        
+        // 否则从打乱的数组中选前2个不重复的
+        for (const x of arr) {
+          if (out.length === 2) break;
+          const key = x.name;
+          if (used.has(key)) continue;
+          out.push(x);
+          used.add(key);
+        }
+        
+        // 如果不足2个，补充
+        while (out.length < 2 && arr.length > 0) {
+          out.push(arr[out.length % arr.length]);
+        }
+        
+        return out;
+      };
+      
+      const menus = pick2(pool);
+      lastGeneratedMenus = menus;  // 保存生成的菜单
+      const teaPref = getTeaPref();
+      const fruitPref = getFruitPref();
+      const teaSuggestions = teaPref==='yes' ? collectSuggestions(TEA_SUGGESTIONS, diseases) : [];
+      const fruitSuggestions = fruitPref==='yes' ? collectSuggestions(FRUIT_SUGGESTIONS, diseases) : [];
+      const compositions = menus.map((mainDishRaw, idx)=>{
+        const mainDish = cloneComponent(mainDishRaw);
+        const side = pickComponent(DEFAULT_SIDE_DISHES, diseases) || cloneComponent(DEFAULT_SIDE_DISHES[0]);
+        const soup = pickComponent(DEFAULT_SOUPS, diseases) || cloneComponent(DEFAULT_SOUPS[0]);
+        const fruit = pickFruitComponent(fruitPref, diseases, idx, fruitSuggestions);
+        const components = [mainDish];
+        if(side) components.push(side);
+        if(soup) components.push(soup);
+        if(fruit) components.push(fruit);
+        const totals = aggregateNutrition(components);
+        return {main:mainDish, side, soup, fruit, totals, components};
+      }).map(comp=>{
+        comp.scaling = applyMealScaling(comp, dynamicTarget);
+        comp.guideline = buildGuidelineSummary(comp.totals, path, meal, dynamicTarget);
+        return comp;
+      });
+      lastCompositions = compositions;
+
+      // 如果没有找到合适的菜品
+      if (menus.length === 0) {
+        scoreEl.textContent = '—';
+        oilSaltEl.textContent = '无可用菜品';
+        spEl.textContent = '请调整筛选条件';
+        fitEl.textContent = '或切换季节';
+        recipeEl.textContent = '未找到符合条件的菜品，请尝试：\n1. 切换季节\n2. 减少禁忌项\n3. 取消部分疾病选择';
+        return;
+      }
+
+      // 评分
+      const bks = compositions.map(comp=>{
+        const d = comp.main;
+        const sp = scoreStapleProtein(d);
+        const os = scoreOilSalt(d, diseases);
+        const df = scoreDiseaseFitAndMethod(d, diseases);
+        return {sp, os, df, total: sp.score + os.score + df.fitScore + df.methodScore, dish:d, composition:comp};
+      });
+      const avg = Math.round(bks.reduce((s,b)=>s+b.total,0)/bks.length || 0);
+      const bmiInfo = resolveBmiInfo();
+      const teaLabel = teaPref==='yes' ? '喝茶' : teaPref==='no' ? '不喝茶' : '未填写';
+      const fruitLabel = fruitPref==='yes' ? '吃水果' : fruitPref==='no' ? '不吃水果' : '未填写';
+      const diseaseLabel = path==='chronic' ? (rawDiseases.length ? rawDiseases.join('、') : '未选择') : '一般均衡';
+      const branchLabel = path==='healthy' ? '健康人食谱（基础均衡）' : `慢性病食谱（${diseaseLabel}）`;
+      const bmiLine = bmiInfo ? `BMI：${bmiInfo.bmi}（${bmiInfo.label}）｜${bmiInfo.energy}｜${bmiInfo.protein}` : 'BMI：未填写身高/体重，暂无法输出能量建议';
+      const prefLine = `饮茶：${teaLabel}｜水果：${fruitLabel}｜路径：${branchLabel}`;
+      let teaLine;
+      if(teaPref==='yes'){
+        const teaRecs = teaSuggestions.slice(0,2);
+        teaLine = teaRecs.length ? `推荐茶饮：${teaRecs.map(item=>`${item.title}（${item.note}）`).join('； ')}` : '推荐茶饮：默认参考桂花陈皮舒缓饮。';
+      }else if(teaPref==='no'){
+        teaLine = '饮茶偏好：暂不饮茶。';
+      }else{
+        teaLine = '饮茶偏好：未填写，默认不额外推荐。';
+      }
+      let fruitLine;
+      if(fruitPref==='yes'){
+        const fruitRecs = fruitSuggestions.slice(0,2);
+        fruitLine = fruitRecs.length ? `推荐水果：${fruitRecs.map(item=>`${item.title}（${item.note}）`).join('； ')}` : '推荐水果：请结合当季低糖水果。';
+      }else if(fruitPref==='no'){
+        fruitLine = '水果偏好：暂不安排水果。';
+      }else{
+        fruitLine = '水果偏好：未填写，默认不额外推荐。';
+      }
+      let intakeLine = '联动：请输入身高/体重以计算配额。';
+      if(dynamicTarget){
+        if(dynamicTarget.meta?.applied){
+          intakeLine = `联动：${describeConsumed(dynamicTarget.meta.consumed)} → 本餐配额 ${formatRangeText(dynamicTarget.energy,'kcal')}`;
+        }else if(dynamicTarget.meta?.note){
+          intakeLine = `联动：${dynamicTarget.meta.note}`;
+        }else{
+          intakeLine = `联动：本餐配额 ${formatRangeText(dynamicTarget.energy,'kcal')}`;
+        }
+      }
+      const totalsLines = compositions.map((comp,i)=> formatTotalsLine(i ? 'B':'A', comp.totals, comp.guideline)).join('\n');
+      const metaSummary = `【体成分 & 偏好快照】
+${bmiLine}
+${prefLine}
+${teaLine}
+${fruitLine}
+${intakeLine}
+${totalsLines}`;
+
+      // 使用 setTimeout 强制刷新显示
+      setTimeout(() => {
+        // 输出 UI - 强制更新
+        scoreEl.textContent = String(avg);
+        oilSaltEl.textContent = bks.map((b,i)=>`套餐${i? 'B':'A'}：盐${b.os.saltScore}/17，油${b.os.oilScore}/18`).join('，');
+        spEl.textContent = bks.map((b,i)=>`套餐${i? 'B':'A'}：主食${b.sp.stapleScore}/15，蛋白${b.sp.proteinScore}/15`).join('，');
+        fitEl.textContent = bks.map((b,i)=>`套餐${i? 'B':'A'}：慢病${b.df.fitScore}/25；做法${b.df.methodScore}/10`).join('； ');
+      }, 10);
+
+      function explainMenu(entry){
+        const d = entry.dish;
+        const comp = entry.composition;
+        const why = (d.tags||[]).includes('护血糖')?'有助控糖':(d.tags||[]).includes('护血管')?'有助护血管':'均衡搭配';
+        const saltG = getSaltG(d); const oilG = getOilG(d);
+        const stap = (typeof d.staple==='object') ? `${d.staple.name}（生重${d.staple.raw_g||'~'}g → 熟约${d.staple.cooked_g_est||'~'}g）` : (d.staple||'未标注主食');
+        let text = `• 主菜：${d.name}（${d.method||'做法未标注'}）
+  主食：${stap}；蛋白熟重≈${getProteinCookedG(d)||'~'}g
+  调味：盐≈${saltG? saltG.toFixed(2):'~'}g、油≈${oilG||'~'}g（分型目标：盐≤${entry.os.saltTarget.toFixed(1)}g，油${entry.os.saltRange[0]}—${entry.os.saltRange[1]}g）
+  适配：${why}；标签：${(d.tags||[]).join('、')||'—'}`;
+        if(comp.side){
+          const n = extractNutrition(comp.side);
+          text += `\n  配菜：${comp.side.name}｜能量≈${n.energy.toFixed(0)}kcal，蛋白≈${n.protein.toFixed(1)}g，盐≈${getSaltG(comp.side).toFixed(2)}g`;
+        }
+        if(comp.soup){
+          const n = extractNutrition(comp.soup);
+          text += `\n  汤品：${comp.soup.name}｜能量≈${n.energy.toFixed(0)}kcal，蛋白≈${n.protein.toFixed(1)}g，盐≈${getSaltG(comp.soup).toFixed(2)}g`;
+        }
+        if(comp.fruit){
+          const n = extractNutrition(comp.fruit);
+          const fruitName = comp.fruit.name || comp.fruit.title || '水果组合';
+          text += `\n  水果/加餐：${fruitName}｜能量≈${n.energy.toFixed(0)}kcal，糖≈${n.sugar.toFixed(1)}g，纤维≈${n.fiber.toFixed(1)}g`;
+        }
+        text += `\n  当餐合计：能量 ${comp.guideline.energy.text}；蛋白 ${comp.guideline.protein.text}；盐 ${comp.guideline.salt.text}；油 ${comp.guideline.oil.text}`;
+        if(comp.scaling && comp.scaling.factor && comp.scaling.factor !== 1){
+          const percent = Math.round(Math.abs(comp.scaling.factor - 1)*100);
+          text += `\n  ※ 根据 BMI/联动目标已${comp.scaling.factor>1?'上调':'下调'}份量 ${percent}%`;
+        }
+        return text;
+      }
+      
+      // 生成带时间戳的菜单内容，确保每次都是新的
+      const timestamp = new Date().toLocaleTimeString('zh-CN', {hour: '2-digit', minute: '2-digit'});
+      const out = `${metaSummary}
+
+【套餐A｜${season}${meal}】
+${explainMenu(bks[0])}
+
+【套餐B｜${season}${meal}】
+${bks[1] ? explainMenu(bks[1]) : '（无备选菜品）'}
+
+改良建议（示例）：
+1) HTN：以天然鲜味替代酱油，盐再降 0.1—0.2g；
+2) HLD/CHD：烹调油从 6—7g 降到 4—6g；
+3) CKD/痛风：去除海鲜/蘑菇类，豆制品选嫩豆腐、份量减半。
+
+生成时间：${timestamp}`;
+      
+      recipeEl.textContent = out;
+      updateImportedIntakeInfo(dynamicTarget);
+
+      // 同步到食堂端
+      $('#canteen-menus').value = out;
+    }
+    
+    // 绑定按钮事件 - 确保每次点击都触发
+    on($('#btn-generate'),'click', () => {
+      // 先显示加载状态
+      recipeEl.textContent = '正在生成新菜单...';
+      // 延迟执行确保UI更新
+      setTimeout(buildMenus, 50);
+    });
+    on($('#btn-clear'),'click', ()=>{
+      recipeEl.textContent='（点击生成，展示套餐A/B与分项得分；可复制到食堂端）';
+      ['score','oilSalt','stapleProtein','diseaseFit'].forEach(id=>$('#'+id).textContent='—');
+      lastGeneratedMenus = [];
+      lastCompositions = [];
+      updateImportedIntakeInfo(null);
+    });
+
+    /******** 预置季节示例 ********/
+    const PRESETS = {
+      '春': [ {title:'清蒸鲈鱼+春笋茭菜+荞麦饭', text:'春季清蒸为主，盐≤0.7g，油6—7g'}, {title:'芹菜木耳鸡片+黑米饭', text:'护血压组合，少油快炒，黑米全谷'} ],
+      '夏': [ {title:'苦瓜鸡胸+燕麦饭', text:'护血糖组合，油6g，盐0.7g'}, {title:'番茄豆腐青菜煮+糙米饭', text:'清淡水煮，油盐低负担'} ],
+      '秋': [ {title:'山药秋葵鸡胸+糙米饭', text:'护血糖，方法少油快炒'}, {title:'南瓜百合山药盅+黑米饭', text:'蒸制，低油低盐'} ],
+      '冬': [ {title:'萝卜鲫鱼清汤+燕麦饭', text:'清炖，护血管'}, {title:'香菇青菜豆腐煮+糙米饭', text:'水煮，清淡'} ]
+    };
+    const presetsEl = $('#presets');
+    const renderPresets = ()=>{ const s=$('#season').value; presetsEl.innerHTML = (PRESETS[s]||[]).map(p=>`<span class="pill">${p.title}</span> ${p.text}`).join('<br/>'); };
+    on($('#season'),'change', renderPresets); renderPresets();
+
+    function syncImportButtons(){
+      const mealValue = currentMealType;
+      const mealKey = MEAL_LABEL_MAP[mealValue] || 'lunch';
+      if(btnLinkBreakfast){
+        btnLinkBreakfast.disabled = mealKey!=='lunch';
+        btnLinkBreakfast.classList.toggle('active', appliedIntake.lunch && mealKey==='lunch');
+      }
+      if(btnLinkDay){
+        btnLinkDay.disabled = mealKey!=='dinner';
+        btnLinkDay.classList.toggle('active', appliedIntake.dinner && mealKey==='dinner');
+      }
+      if(mealLinkHint){
+        mealLinkHint.textContent = mealKey==='lunch'
+          ? '当前为午餐，可导入早餐摄入以重新分配午/晚餐配额。'
+          : '当前为晚餐，可导入早餐+午餐摄入，将剩余能量一次性安排。';
+      }
+    }
+    setMealType(currentMealType);
+    if(btnLinkBreakfast){
+      on(btnLinkBreakfast,'click', ()=>{
+        if(btnLinkBreakfast.disabled) return;
+        if(!mealLog.breakfast){ alert('请先在早餐定制区记录早餐摄入。'); return; }
+        appliedIntake.lunch = !appliedIntake.lunch;
+        syncImportButtons();
+        updateImportedIntakeInfo(resolveMealTargets('午餐'));
+      });
+    }
+    if(btnLinkDay){
+      on(btnLinkDay,'click', ()=>{
+        if(btnLinkDay.disabled) return;
+        if(!mealLog.breakfast){ alert('请先记录早餐摄入。'); return; }
+        if(!mealLog.lunch){ alert('请先记录午餐摄入，再导入晚餐。'); return; }
+        appliedIntake.dinner = !appliedIntake.dinner;
+        syncImportButtons();
+        updateImportedIntakeInfo(resolveMealTargets('晚餐'));
+      });
+    }
+    if(btnSaveMeal){
+      on(btnSaveMeal,'click', ()=>{
+        if(!lastCompositions.length){ alert('请先生成午/晚餐方案后再记录。'); return; }
+        const mealValue = currentMealType;
+        const mealKey = MEAL_LABEL_MAP[mealValue] || 'lunch';
+        const choiceIdx = menuLogChoice && menuLogChoice.value === 'B' ? 1 : 0;
+        const picked = lastCompositions[choiceIdx];
+        if(!picked){ alert('所选套餐不存在'); return; }
+        recordMealIntake(mealKey, picked.totals, {label:`${mealValue}套餐${choiceIdx? 'B':'A'}`, menu: choiceIdx? 'B':'A'});
+        updateImportedIntakeInfo(resolveMealTargets(mealValue));
+        alert(`${mealValue} 套餐${choiceIdx? 'B':'A'} 已记录。`);
+      });
+    }
+    if(btnClearMealLog){
+      on(btnClearMealLog,'click', ()=>{
+        clearMealLog();
+        alert('已清空今日摄入记录。');
+      });
+    }
+
+    /******** AI 生成（本地演示） ********/
+    async function callAI(){
+      const base = $('#apiBase').value.trim();
+      const model = $('#apiModel').value.trim();
+      const key = $('#apiKey').value.trim() || localStorage.getItem('ai_key') || '';
+      if(!key){ alert('请填写 API Key'); return; }
+      const bmiInfo = resolveBmiInfo();
+      const path = currentCarePath();
+      const rawDiseases = selectedDiseaseKeys();
+      const teaPref = getTeaPref();
+      const fruitPref = getFruitPref();
+      const pathLabel = path==='healthy' ? '健康人食谱' : `慢性病食谱（${rawDiseases.join('、')||'未选择'}）`;
+      const prefSummary = [
+        bmiInfo ? `BMI ${bmiInfo.bmi}（${bmiInfo.label}）` : 'BMI 未填写',
+        `饮茶：${teaPref==='yes'?'喝茶':teaPref==='no'?'不喝茶':'未填写'}`,
+        `水果：${fruitPref==='yes'?'吃水果':fruitPref==='no'?'不吃水果':'未填写'}`,
+        `路径：${pathLabel}`
+      ].join('，');
+      const payload = {
+        model,
+        messages: [
+          {role:'system', content:'你是一位严谨的临床营养师与社区膳食顾问。'},
+          {role:'user', content: (
+              $('#promptTpl').value
+              .replace('{{季节}}',$('#season').value)
+              .replace('{{餐别}}', currentMealType)
+              .replace('{{慢病}}', activeDiseaseKeys().join('、') || '一般')
+              .replace('{{禁忌}}',$('#avoid').value || '无')
+            ) + `\n附加信息：${prefSummary}`}
+        ]
+      };
+      const res = await fetch(base+'/chat/completions', { method:'POST', headers:{ 'Content-Type':'application/json','Authorization':'Bearer '+key }, body: JSON.stringify(payload) });
+      if(!res.ok){ const t = await res.text(); alert('调用失败：'+t); return; }
+      const data = await res.json();
+      const text = data.choices?.[0]?.message?.content || '(无输出)';
+      $('#recipe').textContent = text; $('#canteen-menus').value = text;
+    }
+    on($('#btn-call'),'click', callAI);
+    on($('#btn-copy'),'click', ()=> navigator.clipboard.writeText($('#recipe').textContent||''));
+    on($('#saveKey'),'click', ()=>{localStorage.setItem('ai_key',$('#apiKey').value||''); alert('已保存到本地');});
+    on($('#clearKey'),'click', ()=>{localStorage.removeItem('ai_key'); alert('已清除');});
+
+    /******** 早餐（两周） ********/
+    const BF_POOL = [
+      {code:'D01', items:['全麦馒头','水煮蛋','拌黄瓜','温豆浆(无糖)'], nutrition:{energy:380, protein:20, salt:0.6, oil:5}},
+      {code:'D02', items:['玉米','低脂酸奶','小番茄','无糖绿茶'], nutrition:{energy:360, protein:18, salt:0.5, oil:4}},
+      {code:'D03', items:['杂粮饼','卤鸡胸(淡)','苹果','温开水'], nutrition:{energy:400, protein:24, salt:0.65, oil:6}},
+      {code:'D04', items:['燕麦粥(稠)/替米糊','煎豆腐(少油)','凉拌茭菜(低盐)','黑咖啡'], nutrition:{energy:420, protein:22, salt:0.55, oil:7}},
+      {code:'D05', items:['黑芝麻糊(低糖)','鸡蛋羹','拌海带丝(少盐)','温水'], nutrition:{energy:410, protein:19, salt:0.7, oil:5}},
+      {code:'D06', items:['南瓜粥(稠慎重)','白煮蛋','小青菜','无糖豆浆'], nutrition:{energy:370, protein:18, salt:0.55, oil:4.5}},
+      {code:'D07', items:['糙米饭团(紫菜)','低脂奶','黄瓜条','温水'], nutrition:{energy:360, protein:17, salt:0.5, oil:4}},
+      {code:'D08', items:['荞麦面(清汤)','鸡胸丝','西兰花','麦茶'], nutrition:{energy:410, protein:24, salt:0.65, oil:5}},
+      {code:'D09', items:['红薯','酸奶(无糖)','小番茄','温水'], nutrition:{energy:330, protein:15, salt:0.4, oil:3}},
+      {code:'D10', items:['玉米饼(少油)','鹌鹑蛋2枚','凉拌木耳(少盐)','普洱茶'], nutrition:{energy:380, protein:19, salt:0.6, oil:5}},
+      {code:'D11', items:['豆花(淡)','全麦吐司','生菜','温牛奶(不耐者替豆奶)'], nutrition:{energy:390, protein:21, salt:0.55, oil:4.5}},
+      {code:'D12', items:['藜麦饭团','冷切鸡胸(自制少盐)','黄瓜','温水'], nutrition:{energy:400, protein:25, salt:0.6, oil:4}},
+      {code:'D13', items:['小馄饨(清汤少盐)','荷包蛋','小青菜','绿茶'], nutrition:{energy:420, protein:22, salt:0.7, oil:5}},
+      {code:'D14', items:['小米粥(稠慎重)','煎豆腐(少油)','凉拌苦瓜','温水'], nutrition:{energy:390, protein:21, salt:0.6, oil:5.5}}
+    ];
+    const bfResult = $('#bfResult');
+    function populateBreakfastPresets(){
+      if(!bfPresetSelect) return;
+      const options = ['<option value=\"\">— 请选择 —</option>'].concat(
+        BF_POOL.map(item=>`<option value=\"${item.code}\">${item.code}｜${item.items.join(' + ')}</option>`)
+      );
+      bfPresetSelect.innerHTML = options.join('');
+    }
+    populateBreakfastPresets();
+    if(bfPresetSelect){
+      on(bfPresetSelect,'change', ()=>{
+        const preset = BF_POOL.find(item=>item.code === bfPresetSelect.value);
+        if(!preset) return;
+        if(bfEnergyInput) bfEnergyInput.value = preset.nutrition.energy;
+        if(bfProteinInput) bfProteinInput.value = preset.nutrition.protein;
+        if(bfSaltInput) bfSaltInput.value = preset.nutrition.salt;
+        if(bfOilInput) bfOilInput.value = preset.nutrition.oil;
+      });
+    }
+    if(btnRecordBreakfast){
+      on(btnRecordBreakfast,'click', ()=>{
+        const energy = parseFloat(bfEnergyInput?.value)||0;
+        const protein = parseFloat(bfProteinInput?.value)||0;
+        const salt = parseFloat(bfSaltInput?.value)||0;
+        const oil = parseFloat(bfOilInput?.value)||0;
+        if(!(energy>0) || !(protein>0)){ alert('请先填写早餐能量与蛋白值。'); return; }
+        recordMealIntake('breakfast', {energy, protein, salt, oil}, {label:'早餐手动录入'});
+        updateImportedIntakeInfo(resolveMealTargets(currentMealType));
+        alert('已记录早餐摄入。');
+      });
+    }
+    if(btnClearBreakfast){
+      on(btnClearBreakfast,'click', ()=>{
+        mealLog.breakfast = null;
+        persistMealLog();
+        updateMealLogStatus();
+        updateImportedIntakeInfo(resolveMealTargets(currentMealType));
+      });
+    }
+    if(btnTeaGenerate){
+      on(btnTeaGenerate,'click', ()=>{
+        teaResult.textContent = buildTeaPlan();
+      });
+    }
+    if(btnTeaCopy){
+      on(btnTeaCopy,'click', ()=>{
+        navigator.clipboard.writeText((teaResult.textContent||'').trim());
+      });
+    }
+    on($('#btn-bf-generate'),'click', ()=>{
+      const diseases = currentCarePath()==='chronic' ? selectedDiseaseKeys() : [];
+      const avoid = ($('#bfAvoid').value||'').split(',').map(s=>s.trim()).filter(Boolean);
+      const pref = $('#bfPref').value;
+      let pool = BF_POOL.filter(item=> !avoid.some(k=> item.items.join(' ').includes(k)));
+      if(diseases.includes('高血压')) pool = pool.filter(item=> !/咸菜|咸蛋|腐乳/.test(item.items.join(' ')));
+      if(diseases.includes('糖尿病')) pool = pool.filter(item=> !/糖|甜|白粥/.test(item.items.join(' ')));
+      if(diseases.includes('高脂血症')) pool = pool.filter(item=> !/油条|酥饼/.test(item.items.join(' ')));
+      if(diseases.includes('肾脏病/痛风')) pool = pool.filter(item=> !/海带丝|海鲜/.test(item.items.join(' ')));
+      if(pref==='清淡'){
+        pool = pool.sort((a,b)=> {
+          const score = (str)=> (str.match(/无糖|少油|清汤|白煮/g)||[]).length;
+          return score(b.items.join(' ')) - score(a.items.join(' '));
+        });
+      }
+      const combos = (pool.length>=14 ? pool.slice(0,14) : pool.concat(BF_POOL).slice(0,14));
+      const out = combos.map((item,i)=> `D${String(i+1).padStart(2,'0')}｜${item.items.join(' + ')}`).join('\n');
+      bfResult.textContent = out || '（暂无可用组合，请放宽禁忌条件）';
+    });
+    on($('#btn-bf-copy'),'click', ()=> navigator.clipboard.writeText($('#bfResult').textContent||''));
+
+    /******** 食堂端：演示订单 ********/
+    const NAMES = ['王阿姨','张伯','李奶奶','周伯','赵阿姨','钱叔','孙奶奶','吴伯','郑阿姨','冯伯','陈叔','褚阿姨','卫奶奶','蒋伯','沈叔','韩阿姨','杨伯','朱奶奶','秦叔','尤阿姨'];
+    const PHONES = ['138****1201','139****3322','137****4503','136****5614','135****6725','134****7836','133****8947','132****9058','131****0169','130****1270'];
+    const TAGS = ['高血压','糖尿病','高脂血症','冠心病','肾脏病/痛风','一般'];
+    function seedOrders(){
+      const rows = $('#order-table tbody'); rows.innerHTML=''; let total=0, dm=0, htn=0, ldl=0;
+      for(let i=0;i<18;i++){
+        const name=NAMES[i%NAMES.length], phone=PHONES[i%PHONES.length];
+        const type=Math.random()>0.5?'A':'B'; const tag=TAGS[Math.floor(Math.random()*TAGS.length)];
+        const tr=document.createElement('tr'); tr.innerHTML = `<td>${i+1}</td><td>${name}</td><td>${phone}</td><td>套餐${type}</td><td>${tag}</td><td></td>`;
+        rows.appendChild(tr); total++; if(tag==='糖尿病') dm++; if(tag==='高血压') htn++; if(tag==='高脂血症'||tag==='冠心病') ldl++;
+      }
+      $('#kpi-total').textContent=total; $('#kpi-dm').textContent=dm; $('#kpi-htn').textContent=htn; $('#kpi-ldl').textContent=ldl;
+    }
+    on($('#btn-seed-orders'),'click', seedOrders);
+    on($('#btn-clear-orders'),'click', ()=>{ $('#order-table tbody').innerHTML=''; ['kpi-total','kpi-dm','kpi-htn','kpi-ldl'].forEach(id=> $('#'+id).textContent='0'); });
+
+    /******** 配送端：聚合 ********/
+    function buildRoutes(){
+      const groupKey = $('#groupBy').value;
+      const rows = Array.from($('#order-table tbody').querySelectorAll('tr'));
+      if(!rows.length){ $('#routes').textContent = '（没有订单数据，请先在食堂端生成演示订单）'; return; }
+      const groups = {}; const villages=['阳城贵都','九华驿站','静安新苑','虹口北外滩']; const blocks=['1号楼','2号楼','3号楼','5号楼','8号楼'];
+      rows.forEach((tr,i)=>{
+        const cells=tr.querySelectorAll('td'); const type=cells[3].textContent; const tag=cells[4].textContent;
+        const v=villages[i%villages.length], b=blocks[i%blocks.length]; const key=groupKey==='小区'? v:(v+' '+b);
+        groups[key] ||= {A:0,B:0,notes:[]}; if(type.includes('A')) groups[key].A++; else groups[key].B++; if(tag!=='一般') groups[key].notes.push(tag);
+      });
+      let lines=[]; Object.entries(groups).forEach(([k,v])=>{ const extra = v.notes.length? `｜特殊：${Array.from(new Set(v.notes)).join('、')}` : ''; lines.push(`${k}：A×${v.A}，B×${v.B} ${extra}`); });
+      $('#routes').textContent = lines.join('\n');
+    }
+    on($('#btn-build-routes'),'click', buildRoutes);
+    on($('#btn-copy-routes'),'click', ()=> navigator.clipboard.writeText($('#routes').textContent||''));
+  </script>
+</body>
+</html>
